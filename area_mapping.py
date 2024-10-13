@@ -66,7 +66,7 @@ fill_area_with_alpha(result_img, contours_water, blue_fill_color, alpha)
 
 def draw_contours(image, contours, color):
     for contour in contours:
-        epsilon = 0.01 * cv2.arcLength(contour, True)
+        epsilon = 0.005 * cv2.arcLength(contour, True)
         approx = cv2.approxPolyDP(contour, epsilon, True)
         cv2.polylines(image, [approx], True, color, 1)
 
