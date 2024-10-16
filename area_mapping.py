@@ -2,8 +2,9 @@ import cv2
 import numpy as np
 import detectree as dtr
 from scipy.ndimage import binary_opening
+import os
 
-input_image = './mocking examples/mocking_example2.png' # Input Image Path
+input_image = './mocking examples/test_input_6.png' # Input Image Path
 img = cv2.imread(input_image)
 hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
@@ -73,6 +74,26 @@ tree_density_colored = cv2.applyColorMap(tree_density_heatmap, cv2.COLORMAP_HOT)
 # Combine the tree density heatmap with the vegetation/water map
 final_overlay = cv2.addWeighted(result_img, 1, tree_density_colored, 0.25, 0)
 
+def save_image_with_unique_name(image, base_filename, extension='png'):
+    # Start with base number 0
+    counter = 0
+    
+    # Create unique filename
+    filename = f"output examples/{base_filename}_{counter}.{extension}"
+    
+    # Count up until we find an unused filename
+    while os.path.exists(filename):
+        counter += 1
+        filename = f"output examples/{base_filename}_{counter}.{extension}"
+    
+    # Save the image
+    cv2.imwrite(filename, image)
+    print(f"Saved final image to {filename}.")
+
+# Save the final image
+save_image_with_unique_name(final_overlay, 'test_output')
+
+# Display the final image
 cv2.imshow("Final Cartography with Tree Density Heatmap", final_overlay)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
