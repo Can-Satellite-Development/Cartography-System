@@ -3,9 +3,22 @@ import detectree as dtr
 import numpy as np
 import cv2
 
-def tree_detection_mask(img_path: str) -> np.ndarray:
+def tree_detection_mask(img_path: str, expansion_thickness: int = 2, min_area: int = 10) -> np.ndarray:
     y_pred = dtr.Classifier().predict_img(img_path)
-    return y_pred.astype(np.uint8)
+    tree_mask = y_pred.astype(np.uint8)
+
+    contours, _ = cv2.findContours(tree_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Draw Contours around vegetation areas based on "expansion-thickness"
+    expanded_mask = np.zeros_like(tree_mask) # new mask layer
+    for cnt in contours:
+        if cv2.contourArea(cnt) >= min_area:
+            cv2.fillPoly(expanded_mask, [cnt], 255)
+
+            if expansion_thickness > 0:
+                cv2.drawContours(expanded_mask, [cnt], -1, 255, thickness=expansion_thickness)
+
+    return expanded_mask
 
 def water_detection_mask(img_path: str, min_area_threshold: int = 500) -> np.ndarray:
     img = cv2.imread(img_path)
@@ -33,26 +46,58 @@ def water_detection_mask(img_path: str, min_area_threshold: int = 500) -> np.nda
 
     return (filtered_water_mask > 0).astype(np.uint8)
 
-def overlay_masks(original_image_path: str, tree_mask: np.ndarray, water_mask: np.ndarray) -> None:
-    img = cv2.imread(original_image_path)
+def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray, min_area_threshold: int = 2500) -> None:
+    img = cv2.imread(img_path)
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-    combined_mask = np.zeros_like(img_rgb)
-    combined_mask[tree_mask > 0] = (0, 255, 0) # Green RGB for trees
-    combined_mask[water_mask > 0] = (0, 0, 255) # Blue RGB for water
+    # Combine tree and water masks to find free areas
+    combined_mask = np.logical_or(tree_mask > 0, water_mask > 0).astype(np.uint8)
+    
+    free_area_mask = (combined_mask == 0).astype(np.uint8)  # Inverted mask to get free areas
 
+    contours, _ = cv2.findContours(free_area_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Create a new mask to keep only large free areas
+    cleaned_free_area_mask = np.zeros_like(free_area_mask)
+
+    # Iterate over contours and filter out small free areas based on min-area-threshold (-> in pixels)
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        if area >= min_area_threshold:
+            # Draw the contour on the cleaned mask if it is large enough
+            cv2.drawContours(cleaned_free_area_mask, [cnt], -1, 255, thickness=cv2.FILLED)
+
+    # Overlay the free areas on the original image
+    overlay_img = img_rgb.copy()
+    overlay_img[cleaned_free_area_mask == 255] = (255, 0, 0)  # Red RGB for free areas
+    
     alpha_transparency = 0.5
-    overlay = cv2.addWeighted(img_rgb, 1 - alpha_transparency, combined_mask, alpha_transparency, 0)
 
-    plt.figure(figsize=(8, 8))
-    plt.imshow(overlay)
-    plt.title("Tree + Water Mask Overlay")
+    building_overlay = cv2.addWeighted(img_rgb, 1 - alpha_transparency, overlay_img, alpha_transparency, 0)
+
+    # Develop Vegetation/Water Mask
+    nature_overlay = img_rgb.copy()
+    nature_overlay[water_mask > 0] = (0, 0, 255)  # Blue RGB for water
+    nature_overlay[tree_mask > 0] = (0, 255, 0)   # Green RGB for trees
+
+    nature_overlay = cv2.addWeighted(img_rgb, 1 - alpha_transparency, nature_overlay, alpha_transparency, 0)
+
+    # Display the result
+    fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+
+    axes[0].imshow(nature_overlay)
+    axes[0].set_title('Tree + Water Mask Overlay')
+
+    axes[1].imshow(building_overlay)
+    axes[1].set_title('Free Building Areas Mask Overlay')
+
+    plt.tight_layout()
     plt.show()
 
 if __name__ == "__main__":
-    image_input_path = "./main2.png"
+    image_input_path = "./mocking-examples/main2.png"
 
     tree_mask = tree_detection_mask(image_input_path)
     water_mask = water_detection_mask(image_input_path)
 
-    overlay_masks(image_input_path, tree_mask, water_mask)
+    overlay_mapping(image_input_path, tree_mask, water_mask)
