@@ -1,44 +1,42 @@
-import cv2
-import numpy as np
+import matplotlib.pyplot as plt
 import detectree as dtr
-from scipy.ndimage import binary_opening
-import os
+import numpy as np
+import cv2
 
-input_image = './mocking examples/test_input_6.png' # Input Image Path
-img = cv2.imread(input_image)
-hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+def tree_detection_mask(img_path: str, expansion_thickness: int = 2, min_area: int = 10) -> np.ndarray:
+    y_pred = dtr.Classifier().predict_img(img_path)
+    tree_mask = y_pred.astype(np.uint8)
 
-# Define color boundaries/range for vegetation
-lower_green = np.array([35, 50, 50])
-upper_green = np.array([85, 255, 200])
-lower_orange = np.array([10, 100, 100])
-upper_orange = np.array([20, 255, 255])
-lower_brown = np.array([5, 50, 50])
-upper_brown = np.array([20, 200, 150])
-lower_water = np.array([80, 50, 20])
-upper_water = np.array([130, 255, 200])
+    contours, _ = cv2.findContours(tree_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-mask_green = cv2.inRange(hsv, lower_green, upper_green)
-mask_orange = cv2.inRange(hsv, lower_orange, upper_orange)
-mask_brown = cv2.inRange(hsv, lower_brown, upper_brown)
-mask_water = cv2.inRange(hsv, lower_water, upper_water)
+    # Draw Contours around vegetation areas based on "expansion-thickness"
+    expanded_mask = np.zeros_like(tree_mask) # new mask layer
+    for cnt in contours:
+        if cv2.contourArea(cnt) >= min_area:
+            cv2.fillPoly(expanded_mask, [cnt], 255)
 
-# Combine vegetation masks (green, orange, brown)
-combined_vegetation_mask = cv2.bitwise_or(mask_green, mask_orange)
-combined_vegetation_mask = cv2.bitwise_or(combined_vegetation_mask, mask_brown)
+            if expansion_thickness > 0:
+                cv2.drawContours(expanded_mask, [cnt], -1, 255, thickness=expansion_thickness)
 
-# Morphological operations to merge/close small gaps in areas (veg./water) -> get big chunks
-veg_kernel_threshold = 26
-vegetation_kernel = np.ones((veg_kernel_threshold, veg_kernel_threshold), np.uint8)
-closed_vegetation_mask = cv2.morphologyEx(combined_vegetation_mask, cv2.MORPH_CLOSE, vegetation_kernel)
+    return expanded_mask
 
-water_kernel_threshold = 35
-water_kernel = np.ones((water_kernel_threshold, water_kernel_threshold), np.uint8)
-closed_water_mask = cv2.morphologyEx(mask_water, cv2.MORPH_CLOSE, water_kernel)
+def water_detection_mask(img_path: str, min_area_threshold: int = 500) -> np.ndarray:
+    img = cv2.imread(img_path)
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-# Find contours of vegetation and water areas
-contours_vegetation, _ = cv2.findContours(closed_vegetation_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-contours_water, _ = cv2.findContours(closed_water_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Color Range
+    lower_water = np.array([90, 50, 50])
+    upper_water = np.array([140, 255, 255])
+
+    mask_water = cv2.inRange(hsv, lower_water, upper_water)
+
+    # Morphological operations (close small gaps in layer)
+    water_kernel_threshold = 12
+    water_kernel = np.ones((water_kernel_threshold, water_kernel_threshold), np.uint8)
+    closed_water_mask = cv2.morphologyEx(mask_water, cv2.MORPH_CLOSE, water_kernel)
+
+    # Find contours in water segments
+    contours, _ = cv2.findContours(closed_water_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
 # Filter out small contours based on area (clear artifacts)
 min_area_threshold = 200
@@ -74,26 +72,6 @@ tree_density_colored = cv2.applyColorMap(tree_density_heatmap, cv2.COLORMAP_HOT)
 # Combine the tree density heatmap with the vegetation/water map
 final_overlay = cv2.addWeighted(result_img, 1, tree_density_colored, 0.25, 0)
 
-def save_image_with_unique_name(image, base_filename, extension='png'):
-    # Start with base number 0
-    counter = 0
-    
-    # Create unique filename
-    filename = f"output examples/{base_filename}_{counter}.{extension}"
-    
-    # Count up until we find an unused filename
-    while os.path.exists(filename):
-        counter += 1
-        filename = f"output examples/{base_filename}_{counter}.{extension}"
-    
-    # Save the image
-    cv2.imwrite(filename, image)
-    print(f"Saved final image to {filename}.")
-
-# Save the final image
-save_image_with_unique_name(final_overlay, 'test_output')
-
-# Display the final image
 cv2.imshow("Final Cartography with Tree Density Heatmap", final_overlay)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
