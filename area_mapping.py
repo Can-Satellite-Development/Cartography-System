@@ -2,9 +2,77 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2
-from gabor_filter import gabor_detection_mask
-from tree_filter import tree_detection_mask
-from water_filter import water_detection_mask
+import detectree as dtr
+
+
+
+def water_detection_mask(img_path: str, min_area_threshold: int = 500) -> np.ndarray:
+    img = cv2.imread(img_path)
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    # Color Range
+    lower_water = np.array([90, 50, 50])
+    upper_water = np.array([140, 255, 255])
+
+    mask_water = cv2.inRange(hsv, lower_water, upper_water)
+
+    # Morphological operations (close small gaps in layer)
+    water_kernel_threshold = 12
+    water_kernel = np.ones((water_kernel_threshold, water_kernel_threshold), np.uint8)
+    closed_water_mask = cv2.morphologyEx(mask_water, cv2.MORPH_CLOSE, water_kernel)
+
+    # Find contours in water segments
+    contours, _ = cv2.findContours(closed_water_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Filter out artifacts (small water areas based on given threshold)
+    filtered_water_mask = np.zeros_like(closed_water_mask)
+    for cnt in contours:
+        if cv2.contourArea(cnt) >= min_area_threshold:
+            cv2.drawContours(filtered_water_mask, [cnt], -1, 255, thickness=cv2.FILLED)
+
+    return (filtered_water_mask > 0).astype(np.uint8)
+
+
+
+def tree_detection_mask(img_path: str, expansion_thickness: int = 2, min_area: int = 10) -> np.ndarray:
+    y_pred = dtr.Classifier().predict_img(img_path)
+    tree_mask = y_pred.astype(np.uint8)
+
+    contours, _ = cv2.findContours(tree_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Draw Contours around vegetation areas based on "expansion-thickness"
+    expanded_mask = np.zeros_like(tree_mask) # new mask layer
+    for cnt in contours:
+        if cv2.contourArea(cnt) >= min_area:
+            cv2.fillPoly(expanded_mask, [cnt], 255)
+
+            if expansion_thickness > 0:
+                cv2.drawContours(expanded_mask, [cnt], -1, 255, thickness=expansion_thickness)
+
+    return expanded_mask
+
+
+
+def gabor_detection_mask(img_path: str, kernel_size: int = 31, sigma: float = 4.0, gamma: float = 0.5, psi: float = 0, orientations: list[float] = [0, np.pi/4, np.pi/2, 3*np.pi/4], wavelengths: list[float] = [np.pi/4, np.pi/8, np.pi/12]) -> np.ndarray:
+    img = cv2.imread(img_path)
+
+    # Initialize Gabor filter parameters
+    gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    gabor_sum = np.zeros_like(gray_img, dtype=np.float32)
+
+    # Apply multiple Gabor filters with varying parameters
+    for theta in orientations:
+        for lamda in wavelengths:
+            gabor_kernel = cv2.getGaborKernel((kernel_size, kernel_size), sigma, theta, lamda, gamma, psi, ktype=cv2.CV_32F)
+            filtered_img = cv2.filter2D(gray_img, cv2.CV_32F, gabor_kernel)
+            gabor_sum += np.abs(filtered_img)  # Accumulate responses from each filter
+
+    # Normalize the combined Gabor response and threshold to create a binary mask
+    gabor_sum = cv2.normalize(gabor_sum, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    _, gabor_mask = cv2.threshold(gabor_sum, 50, 255, cv2.THRESH_BINARY)  # Threshold value can be adjusted
+
+    return gabor_mask
+
 
 
 def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray, gabor_mask: np.ndarray, min_area_threshold: int = 2500) -> None:
@@ -92,6 +160,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
 
     plt.tight_layout()
     plt.show()
+
 
 
 if __name__ == "__main__":
