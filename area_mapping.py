@@ -95,7 +95,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     plt.show()
 
 if __name__ == "__main__":
-    image_input_path = "./mocking-examples/main2.png"
+    image_input_path = "./mocking-examples/grounds1.png"
 
     tree_mask = tree_detection_mask(image_input_path)
     water_mask = water_detection_mask(image_input_path)
