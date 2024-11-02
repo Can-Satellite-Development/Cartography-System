@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import detectree as dtr
 import numpy as np
-import random
 import cv2
 
 def get_contours(mask: np.ndarray) -> np.ndarray:
@@ -50,7 +49,7 @@ def water_detection_mask(img_path: str, min_area_threshold: int = 500, water_ker
 
     return (filtered_water_mask > 0).astype(np.uint8)
 
-def near_water_mask(zero_mask: np.ndarray, water_mask: np.ndarray, water_source_min_size: int = 1000, coast_range: int = 250) -> np.ndarray:
+def near_water_mask(zero_mask: np.ndarray, water_mask: np.ndarray, water_source_min_size: int = 1000, coast_range: int = 200) -> np.ndarray:
     coast_mask = np.zeros_like(zero_mask) # new empty mask
     contours = get_contours(water_mask)
     for cnt in contours:
@@ -112,36 +111,40 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     # Display the result
     fig, axes = plt.subplots(1, 3, figsize=(10, 5))
 
-    possible_points = np.argwhere(zero_mask > 0)
+    object_properties = [
+        [(40, 55), "HEP-Plant", 2],
+        [(25, 45), "res-building 1", 2],
+        [(25, 45), "res-building 2", 1],
+        [(25, 10), "workshop", 2]
+    ]
 
-    num_rectangles = 8
-    rect_width = 25
-    rect_height = 45
-    min_distance = 10
-
+    # Sorting by priority (descending) and then by size (descending)
+    sorted_properties = sorted(
+        object_properties,
+        key=lambda x: (x[2], x[0][0] * x[0][1]),
+        reverse=True 
+    )
+    
     placed_rectangles = []  
 
     # Overlay rectangles
-    for _ in range(num_rectangles):
-        max_attempts = 2000
-        attempts = 0
-
-        while attempts < max_attempts:
-            y, x = random.choice(possible_points)
-
-            # Check if property in mask-area
+    for dimensions, nametag, _ in sorted_properties:
+        for x, y in np.argwhere(zero_mask > 0): # x, y for positive mask points
+            rect_width, rect_height = dimensions[0], dimensions[1]
+            #Check if rectangles fit within the mask-area
             if (x + rect_width <= coast_mask.shape[1]) and (y + rect_height <= coast_mask.shape[0]):
                 if np.all(coast_mask[y:y + rect_height, x:x + rect_width] > 0):
                     new_rect = (x, y, rect_width, rect_height)
 
                     # Check property collision
+                    min_distance = 10
                     if all(not rectangles_overlap(new_rect, rect, min_distance) for rect in placed_rectangles):
                         placed_rectangles.append(new_rect)
-                        rect = plt.Rectangle((x, y), rect_width, rect_height, linewidth=2, edgecolor="blue", facecolor="none")
+                        rect = plt.Rectangle((x, y), rect_width, rect_height, linewidth=1, edgecolor="red", facecolor="none")
                         axes[2].add_patch(rect)
-                        break
 
-            attempts += 1
+                        axes[2].text(x + rect_width/2, y - 5, nametag, color="red", fontsize=6, ha="center")
+                        break
 
     axes[0].imshow(water_mask)
     axes[0].set_title("Water Mask")
@@ -153,8 +156,6 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     axes[2].set_title("Coast Mask")
 
     plt.tight_layout()
-    plt.show()
-    ()
     plt.show()
 
 if __name__ == "__main__":
