@@ -68,12 +68,8 @@ def get_gabor_filter_mask(img, ksize=15, sigma=4.0, theta=0, lambd=10.0, gamma=0
 
     return gabor_mask
 
-def get_coast_mask(zero_mask: np.ndarray, water_mask: np.ndarray, water_source_min_size: int = 1000, coast_range: int = 200) -> np.ndarray:
-    coast_mask = np.zeros_like(zero_mask) # new empty mask
-    contours = hf.get_contours(water_mask)
-    for cnt in contours:
-        if cv2.contourArea(cnt) >= water_source_min_size:
-            cv2.drawContours(coast_mask, [cnt], -1, 255, thickness=coast_range)
+def get_coast_mask(zero_mask: np.ndarray, water_mask: np.ndarray, water_source_min_size: int = 1000, coast_range: int = 100) -> np.ndarray:
+    coast_mask = hf.mask_range(water_mask, contour_min_size=water_source_min_size, range_size=coast_range)
     
     coast_mask = np.logical_and(zero_mask > 0, coast_mask > 0).astype(np.uint8)
     return coast_mask
@@ -91,7 +87,7 @@ def get_forest_edge_mask(tree_mask: np.ndarray, zero_mask: np.ndarray, contour_m
     
     return forest_edge_mask
 
-def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray, min_area_threshold: int = 2500) -> None:
+def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray) -> None:
     img = cv2.imread(img_path)
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
@@ -100,28 +96,44 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     coast_mask = get_coast_mask(zero_mask, water_mask)
     inland_mask = get_inland_mask(zero_mask, coast_mask)
     forest_edge_mask = get_forest_edge_mask(tree_mask, zero_mask)
+    water_and_coast_mask = np.logical_or(water_mask == 1, coast_mask == 1).astype(np.uint8)
 
     blueprints = hf.get_buildings()
-    buildings = hf.place_buildings(zero_mask, blueprints, {"res-building 1": 1, "res-building 2": 1, "workshop": 1, "HEP-Plant": 2})
+    buildings = hf.place_buildings(blueprints, 
+                                   amounts={
+                                       "res-building 1": 2, 
+                                       "res-building 2": 1, 
+                                       "workshop": 1, 
+                                       "HEP-Plant": 2, 
+                                       "lumberjack": 1, 
+                                       "port": 1, 
+                                       "mine": 1}, 
+                                    masks={
+                                        "zero": zero_mask,
+                                        "coast": coast_mask, 
+                                        "inland": inland_mask, 
+                                        "forest_edge": forest_edge_mask, 
+                                        "water_and_coast": water_and_coast_mask}
+                                   )
 
     # Display the result
     fig, axes = plt.subplots(1, 2, figsize=(10, 5))
 
-    nature_overlay = hf.overlay_from_masks(img_path, (water_mask, (4, 75, 189), 0.75), (tree_mask, (10, 120, 28), 0.75))
-    zero_overlay = hf.overlay_from_masks(img_path, (zero_mask, (255, 200, 0), 0.75))
+    nature_overlay = hf.overlay_from_masks(img_path, (water_mask, (0, 0, 255), 0.5), (tree_mask, (0, 255, 0), 0.5))
+    areas_overlay = hf.overlay_from_masks(img_path, (inland_mask, (255, 0, 0), 0.5), (coast_mask, (0, 0, 255), 0.5), (forest_edge_mask, (0, 255, 0), 0.5))
 
     axes[0].imshow(nature_overlay)
-    axes[0].set_title("Tree + Water Overlay")
+    axes[0].set_title("Nature Overlay")
 
-    axes[1].imshow(zero_overlay)
-    axes[1].set_title("Zero Mask Overlay")
+    axes[1].imshow(areas_overlay)
+    axes[1].set_title("Areas & Buildings Overlay")
 
     axes_index: int = 1
     for building in buildings:
         x, y, w, h = building["rect"]
-        rect = plt.Rectangle((x, y), w, h, linewidth=1, edgecolor="purple", facecolor="none")
+        rect = plt.Rectangle((x, y), w, h, linewidth=1, edgecolor="white", facecolor="none")
         axes[axes_index].add_patch(rect)
-        axes[axes_index].text(x + w/2, y - 5, building["nametag"], color="purple", fontsize=6, ha="center")
+        axes[axes_index].text(x + w/2, y - 5, building["nametag"], color="white", fontsize=6, ha="center")
 
     plt.tight_layout()
     plt.show()
