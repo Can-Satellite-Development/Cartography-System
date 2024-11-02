@@ -50,12 +50,19 @@ def water_detection_mask(img_path: str, min_area_threshold: int = 500, water_ker
 
     return (filtered_water_mask > 0).astype(np.uint8)
 
-def near_water_mask(zero_mask: np.ndarray, water_mask: np.ndarray, water_source_min_size: int = 1000, coast_range: int = 200) -> np.ndarray:
-    coast_mask = np.zeros_like(zero_mask) # new empty mask
-    contours = get_contours(water_mask)
+def extend_mask(mask: np.ndarray, contour_min_size: int = 1000, range: int = 200) -> np.ndarray:
+    near_mask = np.zeros_like(mask) # new empty mask
+    contours = get_contours(mask)
+
+    # Add radius around contours to mask
     for cnt in contours:
-        if cv2.contourArea(cnt) >= water_source_min_size:
-            cv2.drawContours(coast_mask, [cnt], -1, 255, thickness=coast_range)
+        if cv2.contourArea(cnt) >= contour_min_size:
+            cv2.drawContours(near_mask, [cnt], -1, 255, thickness=range)
+    
+    return near_mask
+
+def near_water_mask(zero_mask: np.ndarray, water_mask: np.ndarray, water_source_min_size: int = 1000, coast_range: int = 200) -> np.ndarray:
+    coast_mask = extend_mask(water_mask, water_source_min_size, coast_range)
     
     coast_mask = np.logical_and(zero_mask > 0, coast_mask > 0).astype(np.uint8)
     return coast_mask
