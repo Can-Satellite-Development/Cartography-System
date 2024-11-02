@@ -1,17 +1,14 @@
 import matplotlib.pyplot as plt
+import helper_functions as hf
 import detectree as dtr
 import numpy as np
 import cv2
 
-def get_contours(mask: np.ndarray) -> np.ndarray:
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    return contours
-
-def tree_detection_mask(img_path: str, expansion_thickness: int = 2, min_area: int = 10) -> np.ndarray:
+def get_tree_mask(img_path: str, expansion_thickness: int = 2, min_area: int = 10) -> np.ndarray:
     y_pred = dtr.Classifier().predict_img(img_path)
     tree_mask = y_pred.astype(np.uint8)
 
-    contours = get_contours(tree_mask)
+    contours = hf.get_contours(tree_mask)
 
     # Draw Contours around vegetation areas based on "expansion-thickness"
     expanded_mask = np.zeros_like(tree_mask) # new mask layer
@@ -24,7 +21,7 @@ def tree_detection_mask(img_path: str, expansion_thickness: int = 2, min_area: i
 
     return expanded_mask
 
-def water_detection_mask(img_path: str, min_area_threshold: int = 500, water_kernel_size: int = 12) -> np.ndarray:
+def get_water_mask(img_path: str, min_area_threshold: int = 500, water_kernel_size: int = 12) -> np.ndarray:
     img = cv2.imread(img_path)
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
@@ -39,7 +36,7 @@ def water_detection_mask(img_path: str, min_area_threshold: int = 500, water_ker
     closed_water_mask = cv2.morphologyEx(mask_water, cv2.MORPH_CLOSE, water_kernel)
 
     # Find contours in water segments
-    contours = get_contours(closed_water_mask)
+    contours = hf.get_contours(closed_water_mask)
 
     # Filter out artifacts (small water areas based on given threshold)
     filtered_water_mask = np.zeros_like(closed_water_mask)
@@ -49,9 +46,31 @@ def water_detection_mask(img_path: str, min_area_threshold: int = 500, water_ker
 
     return (filtered_water_mask > 0).astype(np.uint8)
 
-def near_water_mask(zero_mask: np.ndarray, water_mask: np.ndarray, water_source_min_size: int = 1000, coast_range: int = 200) -> np.ndarray:
+def get_zero_mask(tree_mask: np.ndarray, water_mask: np.ndarray) -> np.ndarray:
+    # Combine tree and water masks to find free areas
+    combined_mask = np.logical_or(tree_mask > 0, water_mask > 0).astype(np.uint8)
+
+    # Inverted mask to get free areas
+    free_area_mask = (combined_mask == 0).astype(np.uint8)
+
+    zero_mask =  hf.filter_artifacts(free_area_mask)
+
+    return zero_mask
+
+def get_gabor_filter_mask(img, ksize=15, sigma=4.0, theta=0, lambd=10.0, gamma=0.5, psi=1) -> np.ndarray:
+    gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # Gabor kernel (filter)
+    gabor_kernel = cv2.getGaborKernel((ksize, ksize), sigma, theta, lambd, gamma, psi, ktype=cv2.CV_32F)
+
+    # Apply gabor filter to the image
+    gabor_mask = cv2.filter2D(gray_img, cv2.CV_8UC3, gabor_kernel)
+
+    return gabor_mask
+
+def get_coast_mask(zero_mask: np.ndarray, water_mask: np.ndarray, water_source_min_size: int = 1000, coast_range: int = 200) -> np.ndarray:
     coast_mask = np.zeros_like(zero_mask) # new empty mask
-    contours = get_contours(water_mask)
+    contours = hf.get_contours(water_mask)
     for cnt in contours:
         if cv2.contourArea(cnt) >= water_source_min_size:
             cv2.drawContours(coast_mask, [cnt], -1, 255, thickness=coast_range)
@@ -59,101 +78,50 @@ def near_water_mask(zero_mask: np.ndarray, water_mask: np.ndarray, water_source_
     coast_mask = np.logical_and(zero_mask > 0, coast_mask > 0).astype(np.uint8)
     return coast_mask
 
-def rectangles_overlap(rect1, rect2, min_distance):
-    x1, y1, w1, h1 = rect1
-    x2, y2, w2, h2 = rect2
+def get_inland_mask(zero_mask: np.ndarray, coast_mask: np.ndarray) -> np.ndarray:
+    # Convert masks to binary masks
+    zero_mask = (zero_mask > 0).astype(np.uint8) * 255
+    coast_mask = (coast_mask > 0).astype(np.uint8) * 255
 
-    return not (
-        x1 + w1 + min_distance <= x2 or
-        x2 + w2 + min_distance <= x1 or
-        y1 + h1 + min_distance <= y2 or
-        y2 + h2 + min_distance <= y1
-    )
+    return cv2.bitwise_and(zero_mask, cv2.bitwise_not(coast_mask))
+
+def get_forest_edge_mask(tree_mask: np.ndarray, zero_mask: np.ndarray, contour_min_size: int = 500, range_size: int = 50) -> np.ndarray:
+    tree_range_mask = hf.mask_range(tree_mask, contour_min_size=contour_min_size, range_size=range_size)
+    forest_edge_mask = np.logical_and(tree_range_mask, zero_mask).astype(np.uint8)
+    
+    return forest_edge_mask
 
 def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray, min_area_threshold: int = 2500) -> None:
     img = cv2.imread(img_path)
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-    # Combine tree and water masks to find free areas
-    combined_mask = np.logical_or(tree_mask > 0, water_mask > 0).astype(np.uint8)
-    
-    free_area_mask = (combined_mask == 0).astype(np.uint8)  # Inverted mask to get free areas
+    nature_mask = np.logical_or(tree_mask == 1, water_mask == 1).astype(np.uint8)
+    zero_mask = get_zero_mask(tree_mask, water_mask)
+    coast_mask = get_coast_mask(zero_mask, water_mask)
+    inland_mask = get_inland_mask(zero_mask, coast_mask)
+    forest_edge_mask = get_forest_edge_mask(tree_mask, zero_mask)
 
-    contours = get_contours(free_area_mask)
-
-    # Create a new mask to keep only large free areas
-    zero_mask = np.zeros_like(free_area_mask)
-
-    # Iterate over contours and filter out small free areas based on min-area-threshold (-> in pixels)
-    for cnt in contours:
-        area = cv2.contourArea(cnt)
-        if area >= min_area_threshold:
-            # Draw the contour on the cleaned mask if it is large enough
-            cv2.drawContours(zero_mask, [cnt], -1, 255, thickness=cv2.FILLED)
-
-    # Overlay the free areas on the original image
-    zero_overlay = img_rgb.copy()
-    zero_overlay[zero_mask == 255] = (255, 0, 0)  # Red RGB for free areas
-    
-    alpha_transparency = 0.5
-
-    free_space_overlay = cv2.addWeighted(img_rgb, 1 - alpha_transparency, zero_overlay, alpha_transparency, 0)
-
-    # Develop Vegetation/Water Mask
-    nature_overlay = img_rgb.copy()
-    nature_overlay[water_mask > 0] = (0, 0, 255)  # Blue RGB for water
-    nature_overlay[tree_mask > 0] = (0, 255, 0)   # Green RGB for trees
-
-    nature_overlay = cv2.addWeighted(img_rgb, 1 - alpha_transparency, nature_overlay, alpha_transparency, 0)
-
-    coast_mask = near_water_mask(zero_mask, water_mask)
+    blueprints = hf.get_buildings()
+    buildings = hf.place_buildings(zero_mask, blueprints, {"res-building 1": 1, "res-building 2": 1, "workshop": 1, "HEP-Plant": 2})
 
     # Display the result
-    fig, axes = plt.subplots(1, 3, figsize=(10, 5))
+    fig, axes = plt.subplots(1, 2, figsize=(10, 5))
 
-    object_properties = [
-        [(40, 55), "HEP-Plant", 2],
-        [(25, 45), "res-building 1", 2],
-        [(25, 45), "res-building 2", 1],
-        [(25, 10), "workshop", 2]
-    ]
+    nature_overlay = hf.overlay_from_masks(img_path, (water_mask, (4, 75, 189), 0.75), (tree_mask, (10, 120, 28), 0.75))
+    zero_overlay = hf.overlay_from_masks(img_path, (zero_mask, (255, 200, 0), 0.75))
 
-    # Sorting by priority (descending) and then by size (descending)
-    sorted_properties = sorted(
-        object_properties,
-        key=lambda x: (x[2], x[0][0] * x[0][1]),
-        reverse=True 
-    )
-    
-    placed_rectangles = []  
+    axes[0].imshow(nature_overlay)
+    axes[0].set_title("Tree + Water Overlay")
 
-    # Overlay rectangles
-    for dimensions, nametag, _ in sorted_properties:
-        for x, y in np.argwhere(zero_mask > 0): # x, y for positive mask points
-            rect_width, rect_height = dimensions[0], dimensions[1]
-            #Check if rectangles fit within the mask-area
-            if (x + rect_width <= coast_mask.shape[1]) and (y + rect_height <= coast_mask.shape[0]):
-                if np.all(coast_mask[y:y + rect_height, x:x + rect_width] > 0):
-                    new_rect = (x, y, rect_width, rect_height)
+    axes[1].imshow(zero_overlay)
+    axes[1].set_title("Zero Mask Overlay")
 
-                    # Check property collision
-                    min_distance = 10
-                    if all(not rectangles_overlap(new_rect, rect, min_distance) for rect in placed_rectangles):
-                        placed_rectangles.append(new_rect)
-                        rect = plt.Rectangle((x, y), rect_width, rect_height, linewidth=1, edgecolor="red", facecolor="none")
-                        axes[2].add_patch(rect)
-
-                        axes[2].text(x + rect_width/2, y - 5, nametag, color="red", fontsize=6, ha="center")
-                        break
-
-    axes[0].imshow(water_mask)
-    axes[0].set_title("Water Mask")
-
-    axes[1].imshow(zero_mask)
-    axes[1].set_title("Zero Mask")
-
-    axes[2].imshow(coast_mask)
-    axes[2].set_title("Coast Mask")
+    axes_index: int = 1
+    for building in buildings:
+        x, y, w, h = building["rect"]
+        rect = plt.Rectangle((x, y), w, h, linewidth=1, edgecolor="purple", facecolor="none")
+        axes[axes_index].add_patch(rect)
+        axes[axes_index].text(x + w/2, y - 5, building["nametag"], color="purple", fontsize=6, ha="center")
 
     plt.tight_layout()
     plt.show()
@@ -161,7 +129,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
 if __name__ == "__main__":
     image_input_path = "./mocking-examples/main2.png"
 
-    tree_mask = tree_detection_mask(image_input_path)
-    water_mask = water_detection_mask(image_input_path)
+    tree_mask = get_tree_mask(image_input_path)
+    water_mask = get_water_mask(image_input_path)
 
     overlay_mapping(image_input_path, tree_mask, water_mask)
