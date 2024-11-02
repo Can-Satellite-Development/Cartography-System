@@ -118,8 +118,8 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     # Display the result
     fig, axes = plt.subplots(1, 2, figsize=(10, 5))
     
-    nature_overlay = hf.overlay_from_masks(img_path, (water_mask, (0, 0, 255), 0.5), (tree_mask, (0, 255, 0), 0.5))
-    areas_overlay = hf.overlay_from_masks(img_path, (inland_mask, (255, 0, 0), 0.5), (coast_mask, (0, 0, 255), 0.5), (forest_edge_mask, (0, 255, 0), 0.5))
+    nature_overlay = hf.overlay_from_masks(img, (water_mask, (0, 0, 255), 0.5), (tree_mask, (0, 255, 0), 0.5))
+    areas_overlay = hf.overlay_from_masks(img, (inland_mask, (255, 0, 0), 0.5), (coast_mask, (0, 0, 255), 0.5), (forest_edge_mask, (0, 255, 0), 0.5))
 
     axes[0].imshow(nature_overlay)
     axes[0].set_title("Nature Overlay")
