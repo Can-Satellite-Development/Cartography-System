@@ -1,3 +1,4 @@
+
 import matplotlib.pyplot as plt
 import detectree as dtr
 import numpy as np
@@ -50,7 +51,7 @@ def water_detection_mask(img_path: str, min_area_threshold: int = 500, water_ker
 
     return (filtered_water_mask > 0).astype(np.uint8)
 
-def extend_mask(mask: np.ndarray, contour_min_size: int = 1000, range: int = 200) -> np.ndarray:
+def mask_range(mask: np.ndarray, contour_min_size: int = 1000, range: int = 200) -> np.ndarray:
     near_mask = np.zeros_like(mask) # new empty mask
     contours = get_contours(mask)
 
@@ -61,11 +62,13 @@ def extend_mask(mask: np.ndarray, contour_min_size: int = 1000, range: int = 200
     
     return near_mask
 
-def near_water_mask(zero_mask: np.ndarray, water_mask: np.ndarray, water_source_min_size: int = 1000, coast_range: int = 200) -> np.ndarray:
-    coast_mask = extend_mask(water_mask, water_source_min_size, coast_range)
+def combine_masks(*masks: np.ndarray, operation: np.ufunc = np.logical_and) -> np.ndarray:
+    combined_mask = masks[0]
+
+    for mask in masks[1:]:
+        combined_mask = operation(combined_mask, mask > 0).astype(np.uint8)
     
-    coast_mask = np.logical_and(zero_mask > 0, coast_mask > 0).astype(np.uint8)
-    return coast_mask
+    return combined_mask
 
 def rectangles_overlap(rect1, rect2, min_distance):
     x1, y1, w1, h1 = rect1
@@ -123,33 +126,47 @@ def place_buildings(mask: np.ndarray, building_blueprints: list, amounts: dict[s
 
     return placed_buildings
 
-def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray, min_area_threshold: int = 2500) -> None:
+def overlay_from_masks(img_path: str, *masks: tuple[np.ndarray, list[int, int, int], float]) -> None:
     img = cv2.imread(img_path)
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-    ## Masks
+    # Add each mask with its color to the Overlay
+    overlay = img_rgb.copy()
+    for mask, color, alpha in masks:
+        mask_overlay = img_rgb.copy()
+        mask_overlay[mask > 0] = color
+        overlay = cv2.addWeighted(overlay, 1 - alpha, mask_overlay, alpha, 0)
+        # Blend the overlay with the original image
+    overlay = cv2.addWeighted(img_rgb, 0, overlay, 1, 0)
 
-    # Combine tree and water masks to find free areas
-    nature_mask = np.logical_or(tree_mask > 0, water_mask > 0).astype(np.uint8)
+    return overlay
+
+def filter_artifacts(mask: np.ndarray, min_area_threshold: int = 2500) -> np.ndarray:
+    contours = get_contours(mask)
+    filtered_mask = np.zeros_like(mask)
+
+    for cnt in contours:
+        if cv2.contourArea(cnt) >= min_area_threshold:
+            cv2.drawContours(filtered_mask, [cnt], -1, 255, thickness=cv2.FILLED)
+
+    return filtered_mask
+
+def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray, min_area_threshold: int = 2500) -> None:
+
+    ## Masks
+    
+    water_range_mask = mask_range(water_mask, contour_min_size=1000, range=100)
+
+    tree_range_mask = mask_range(tree_mask, contour_min_size=500, range=50)
+
+    nature_mask = combine_masks(tree_mask, water_mask, operation=np.logical_or)
     
     free_area_mask = (nature_mask == 0).astype(np.uint8)  # Inverted mask to get free areas
+    zero_mask = filter_artifacts(free_area_mask, min_area_threshold=min_area_threshold)
 
-    contours = get_contours(free_area_mask)
+    coast_mask = combine_masks(water_range_mask, zero_mask, operation=np.logical_and)
 
-    # Create a new mask to keep only large free areas
-    zero_mask = np.zeros_like(free_area_mask)
-
-    # Iterate over contours and filter out small free areas based on min-area-threshold (-> in pixels)
-    for cnt in contours:
-        area = cv2.contourArea(cnt)
-        if area >= min_area_threshold:
-            # Draw the contour on the cleaned mask if it is large enough
-            cv2.drawContours(zero_mask, [cnt], -1, 255, thickness=cv2.FILLED)
-
-    coast_mask = near_water_mask(zero_mask, water_mask)
-
-    # Display the result
-    fig, axes = plt.subplots(2, 3, figsize=(10, 5))
+    forest_edge_mask = combine_masks(tree_range_mask, zero_mask, operation=np.logical_and)
 
     ## Buildings
 
@@ -159,62 +176,55 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     ## Overlays
     
     alpha_transparency = 0.5
+    range_alpha_transparency = 0.2
 
     # Water Overlay
-    water_overlay = img_rgb.copy()
-    water_overlay[water_mask > 0] = (0, 0, 255)  # Blue RGB for water
-    water_overlay = cv2.addWeighted(img_rgb, 1 - alpha_transparency, water_overlay, alpha_transparency, 0)
+    water_overlay = overlay_from_masks(img_path, (water_mask, (0, 0, 255), alpha_transparency), (water_range_mask, (0, 0, 255), range_alpha_transparency))
 
     # Tree Overlay
-    tree_overlay = img_rgb.copy()
-    tree_overlay[tree_mask > 0] = (0, 255, 0)   # Green RGB for trees
-    tree_overlay = cv2.addWeighted(img_rgb, 1 - alpha_transparency, tree_overlay, alpha_transparency, 0)
+    tree_overlay = overlay_from_masks(img_path, (tree_mask, (0, 255, 0), alpha_transparency), (tree_range_mask, (0, 255, 0), range_alpha_transparency))
 
-    # Develop Vegetation/Water Overlay
-    nature_overlay = img_rgb.copy()
-    nature_overlay[water_mask > 0] = (0, 0, 255)  # Blue RGB for water
-    nature_overlay[tree_mask > 0] = (0, 255, 0)   # Green RGB for trees
-    nature_overlay = cv2.addWeighted(img_rgb, 1 - alpha_transparency, nature_overlay, alpha_transparency, 0)
+    # Nature Overlay
+    nature_overlay = overlay_from_masks(img_path, (water_mask, (0, 0, 255), alpha_transparency), (tree_mask, (0, 255, 0), alpha_transparency))
 
     # Coast Overlay
-    coast_overlay = img_rgb.copy()
-    coast_overlay[coast_mask > 0] = (255, 255, 0)  # Yellow RGB for coast
-    coast_overlay = cv2.addWeighted(img_rgb, 1 - alpha_transparency, coast_overlay, alpha_transparency, 0)
+    coast_overlay = overlay_from_masks(img_path, (coast_mask, (255, 0, 255), alpha_transparency))
 
-    # Overlay the free areas on the original image
-    zero_overlay = img_rgb.copy()
-    zero_overlay[zero_mask == 255] = (255, 0, 0)  # Red RGB for free areas
-    zero_overlay = cv2.addWeighted(img_rgb, 1 - alpha_transparency, zero_overlay, alpha_transparency, 0)
+    # Forest Edge Overlay
+    forest_edge_overlay = overlay_from_masks(img_path, (forest_edge_mask, (255, 255, 0), alpha_transparency))
 
-    # Building Overlay
-    building_overlay = img_rgb.copy()
+    # Free Area Overlay
+    zero_overlay = overlay_from_masks(img_path, (zero_mask, (255, 0, 0), alpha_transparency))
 
     ## Display
 
+    fig, axes = plt.subplots(2, 3, figsize=(10, 5))
+
     axes[0][0].imshow(water_overlay)
-    axes[0][0].set_title("Water Overlay")
+    axes[0][0].set_title("Water & Water Range Overlay")
 
     axes[0][1].imshow(tree_overlay)
-    axes[0][1].set_title("Tree Overlay")
+    axes[0][1].set_title("Tree & Tree Range Overlay")
 
     axes[0][2].imshow(nature_overlay)
     axes[0][2].set_title("Nature Overlay")
 
     axes[1][0].imshow(coast_overlay)
-    axes[1][0].set_title("Coast Overlay (Coast Range: 200px)")
+    axes[1][0].set_title("Coast Overlay")
 
-    axes[1][1].imshow(zero_overlay)
-    axes[1][1].set_title("Zero Overlay")
+    axes[1][1].imshow(forest_edge_overlay)
+    axes[1][1].set_title("Forest Edge Overlay")
 
-    axes[1][2].imshow(building_overlay)
-    axes[1][2].set_title("Building Overlay")
+    axes[1][2].imshow(zero_overlay)
+    axes[1][2].set_title("Zero & Building Overlay")
+    building_color = (0.1, 0, 0)
     for building in buildings:
         x, y, w, h = building["rect"]
         nametag = building["nametag"]
-        rect = plt.Rectangle((x, y), w, h, linewidth=1, edgecolor="red", facecolor="none")
+        rect = plt.Rectangle((x, y), w, h, linewidth=1, edgecolor=building_color, facecolor="none")
         axes[1][2].add_patch(rect)
 
-        axes[1][2].text(x + w/2, y - 5, nametag, color="red", fontsize=6, ha="center")
+        axes[1][2].text(x + w/2, y - 5, nametag, color=building_color, fontsize=6, ha="center")
 
     plt.tight_layout()
     plt.show()
