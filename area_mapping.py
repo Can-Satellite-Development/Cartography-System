@@ -151,6 +151,35 @@ def filter_artifacts(mask: np.ndarray, min_area_threshold: int = 2500) -> np.nda
 
     return filtered_mask
 
+def get_mask_regions(mask: np.ndarray) -> list:
+    # Apply connected components to label each separate area
+    num_labels, labels = cv2.connectedComponents(mask)
+
+    # Create a list to store individual masks
+    mask_regions = []
+
+    # Generate each mask for the labeled regions (ignore label 0, which is the background)
+    for label in range(1, num_labels):
+        # Create a new mask for each component
+        component_mask = (labels == label).astype(np.uint8)
+        mask_regions.append(component_mask)
+    
+    return mask_regions
+
+def get_mask_centroid(mask: np.ndarray) -> tuple[int, int]:
+    # Calculate moments of the mask
+    moments = cv2.moments(mask)
+
+    # Calculate the centroid from the moments (cx, cy)
+    if moments["m00"] != 0:  # To avoid division by zero
+        cx = int(moments["m10"] / moments["m00"])
+        cy = int(moments["m01"] / moments["m00"])
+    else:
+        # If the area is zero, set centroid to None
+        return None
+    
+    return cx, cy
+
 def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray, min_area_threshold: int = 2500) -> None:
 
     ## Masks
