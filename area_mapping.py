@@ -57,7 +57,7 @@ def get_zero_mask(tree_mask: np.ndarray, water_mask: np.ndarray) -> np.ndarray:
 
     return zero_mask
 
-def get_gabor_filter_mask(img, ksize=15, sigma=4.0, theta=0, lambd=10.0, gamma=0.5, psi=1) -> np.ndarray:
+def get_gabor_filter_mask(img, ksize=15, sigma=4.4, theta=0.2, lambd=9.8, gamma=0.2, psi=0.885) -> np.ndarray:
     gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     # Gabor kernel (filter)
@@ -93,7 +93,6 @@ def get_forest_edge_mask(tree_mask: np.ndarray, zero_mask: np.ndarray, contour_m
 
 def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray, min_area_threshold: int = 2500) -> None:
     img = cv2.imread(img_path)
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     nature_mask = np.logical_or(tree_mask == 1, water_mask == 1).astype(np.uint8)
     zero_mask = get_zero_mask(tree_mask, water_mask)
@@ -107,8 +106,8 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     # Display the result
     fig, axes = plt.subplots(1, 2, figsize=(10, 5))
 
-    nature_overlay = hf.overlay_from_masks(img_path, (water_mask, (4, 75, 189), 0.75), (tree_mask, (10, 120, 28), 0.75))
-    zero_overlay = hf.overlay_from_masks(img_path, (zero_mask, (255, 200, 0), 0.75))
+    nature_overlay = hf.overlay_from_masks(img, (water_mask, (4, 75, 189), 0.75), (tree_mask, (10, 120, 28), 0.75))
+    zero_overlay = hf.overlay_from_masks(img, (zero_mask, (255, 200, 0), 0.75))
 
     axes[0].imshow(nature_overlay)
     axes[0].set_title("Tree + Water Overlay")

@@ -102,8 +102,7 @@ def place_buildings(mask: np.ndarray, building_blueprints: list, amounts: dict[s
 
     return placed_buildings
 
-def overlay_from_masks(img_path: str, *masks: tuple[np.ndarray, list[int, int, int], float]) -> None:
-    img = cv2.imread(img_path)
+def overlay_from_masks(img, *masks: np.ndarray) -> None:
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     # Add each mask with its color to the Overlay
