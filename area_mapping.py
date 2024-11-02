@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import detectree as dtr
 import numpy as np
+import random
 import cv2
 
 def tree_detection_mask(img_path: str, expansion_thickness: int = 2, min_area: int = 10) -> np.ndarray:
@@ -85,6 +86,27 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     # Display the result
     fig, axes = plt.subplots(1, 2, figsize=(10, 5))
 
+    possible_points = np.argwhere(cleaned_free_area_mask > 0)
+
+    num_rectangles = 1
+    rect_width = 35
+    rect_height = 75
+
+    # Overlay rectangles
+    for _ in range(num_rectangles):
+        while True:
+            # Randomly select a start point from the possible points
+            y, x = random.choice(possible_points)
+
+            # Check if the rectangle fits within the mask boundaries
+            if (x + rect_width <= cleaned_free_area_mask.shape[1]) and (y + rect_height <= cleaned_free_area_mask.shape[0]):
+                # Check if the entire rectangle is within the free area
+                if np.all(cleaned_free_area_mask[y:y + rect_height, x:x + rect_width] > 0):
+                    # Draw the rectangle using matplotlib on the second subplot
+                    rect = plt.Rectangle((x, y), rect_width, rect_height, linewidth=2, edgecolor='yellow', facecolor='none')
+                    axes[1].add_patch(rect)  # Use axes[1] to add the rectangle
+                    break
+
     axes[0].imshow(nature_overlay)
     axes[0].set_title('Tree + Water Mask Overlay')
 
@@ -92,6 +114,8 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     axes[1].set_title('Free Building Areas Mask Overlay')
 
     plt.tight_layout()
+    plt.show()
+    ()
     plt.show()
 
 if __name__ == "__main__":
