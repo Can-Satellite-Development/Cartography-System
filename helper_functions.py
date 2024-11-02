@@ -1,6 +1,7 @@
 import numpy as np
 import json
 import cv2
+import networkx as nx
 
 def __plot_overlap__(rect1, rect2, min_distance):
     x1, y1, w1, h1 = rect1
@@ -130,3 +131,81 @@ def filter_artifacts(mask: np.ndarray, min_area_threshold: int = 2500) -> np.nda
             cv2.drawContours(filtered_mask, [cnt], -1, 255, thickness=cv2.FILLED)
 
     return filtered_mask
+
+# Custom Delaunay triangulation function
+def custom_delaunay(points):
+    edges = set()
+    num_points = len(points)
+    for i in range(num_points):
+        for j in range(i + 1, num_points):
+            for k in range(j + 1, num_points):
+                pi, pj, pk = points[i], points[j], points[k]
+                circumcenter, radius = get_circumcircle(pi, pj, pk)
+                if circumcenter is None:
+                    continue
+                is_valid = True
+                for m in range(num_points):
+                    if m != i and m != j and m != k:
+                        if np.linalg.norm(points[m] - circumcenter) < radius:
+                            is_valid = False
+                            break
+                if is_valid:
+                    edges.add((i, j))
+                    edges.add((j, k))
+                    edges.add((k, i))
+    return edges
+
+def get_circumcircle(p1, p2, p3):
+    A = np.array([
+        [p1[0], p1[1], 1],
+        [p2[0], p2[1], 1],
+        [p3[0], p3[1], 1]
+    ])
+    D = np.linalg.det(A)
+    if D == 0:
+        return None, np.inf
+    A1 = np.array([
+        [p1[0]**2 + p1[1]**2, p1[1], 1],
+        [p2[0]**2 + p2[1]**2, p2[1], 1],
+        [p3[0]**2 + p3[1]**2, p3[1], 1]
+    ])
+    A2 = np.array([
+        [p1[0]**2 + p1[1]**2, p1[0], 1],
+        [p2[0]**2 + p2[1]**2, p2[0], 1],
+        [p3[0]**2 + p3[1]**2, p3[0], 1]
+    ])
+    A3 = np.array([
+        [p1[0]**2 + p1[1]**2, p1[0], p1[1]],
+        [p2[0]**2 + p2[1]**2, p2[0], p2[1]],
+        [p3[0]**2 + p3[1]**2, p3[0], p3[1]]
+    ])
+    x = np.linalg.det(A1) / (2 * D)
+    y = -np.linalg.det(A2) / (2 * D)
+    radius = np.sqrt(np.linalg.det(A3) / D + x**2 + y**2)
+    return np.array([x, y]), radius
+
+def building_centers(buildings: list) -> np.ndarray:
+    return np.array([(building["rect"][0] + building["rect"][2] // 2, building["rect"][1] + building["rect"][3] // 2) for building in buildings])
+
+def generate_paths(buildings: list) -> list[tuple[tuple]]:
+    centers = building_centers(buildings)
+
+    # Generate paths between all centers using Delauney
+    edges = custom_delaunay(centers)
+
+    # Create a graph from the edges
+    graph = nx.Graph()
+    for edge in edges:
+        p1, p2 = centers[edge[0]], centers[edge[1]]
+        distance = np.linalg.norm(p1 - p2)
+        graph.add_edge(edge[0], edge[1], weight=distance)
+
+    # Create minimum spanning tree of graph
+    mst: nx.Graph = nx.minimum_spanning_tree(graph)
+    
+    paths = []
+    for edge in mst.edges():
+        p1, p2 = centers[edge[0]], centers[edge[1]]
+        paths.append((p1, p2))
+
+    return paths

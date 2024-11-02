@@ -114,6 +114,8 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
                                         "forest_edge": forest_edge_mask, 
                                         "water_and_coast": water_and_coast_mask}
                                    )
+    
+    paths = hf.generate_paths(buildings)
 
     # Display the result
     fig, axes = plt.subplots(1, 2, figsize=(10, 5))
@@ -128,6 +130,10 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     axes[1].set_title("Areas & Buildings Overlay")
 
     axes_index: int = 1
+    for path in paths:
+        (x1, y1), (x2, y2) = path
+        line = plt.Line2D([x1, x2], [y1, y2], linewidth=3, color=(0.3, 0.3, 0.3))
+        axes[axes_index].add_line(line)
     for building in buildings:
         x, y, w, h = building["rect"]
         rect = plt.Rectangle((x, y), w, h, linewidth=1, edgecolor="white", facecolor="none")
