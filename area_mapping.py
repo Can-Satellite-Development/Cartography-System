@@ -104,9 +104,9 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
                                        "res-building 1": 2, 
                                        "res-building 2": 1, 
                                        "workshop": 1, 
-                                       "HEP-Plant": 2, 
+                                       "HEP-Plant": 10, 
                                        "lumberjack": 1, 
-                                       "port": 1, 
+                                       "port": 10, 
                                        "mine": 1}, 
                                     masks={
                                         "zero": zero_mask,
