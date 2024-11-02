@@ -71,10 +71,10 @@ def get_buildings(sort_priority: bool = True) -> list:
     else:
         return buildings
 
-def place_buildings(mask: np.ndarray, building_blueprints: list, amounts: dict[str, int]) -> list:
+def place_buildings(blueprints: list, amounts: dict[str, int], masks: dict[str, np.ndarray]) -> list:
     # Get buildings from blueprints
     buildings_to_place = []
-    for blueprint in building_blueprints:
+    for blueprint in blueprints:
         # Place amount of blueprint specified
         for _ in range(amounts[blueprint["name"]]):
             buildings_to_place.append(blueprint)
@@ -84,9 +84,14 @@ def place_buildings(mask: np.ndarray, building_blueprints: list, amounts: dict[s
     for building in buildings_to_place:
         nametag = building["name"]
         dimensions = building["size"]
+        location = building["location"]
+
+        # Get possible location mask
+        mask = masks[location]
+        centroid = get_mask_centroid(mask)
 
         # Iterate over the mask
-        for x, y in np.argwhere(mask > 0): # x, y for positive mask points
+        for y, x in sorted(np.argwhere(mask > 0), key=lambda x: ((x[0] - centroid[0]) ** 2 + (x[1] - centroid[1]) ** 2) ** 0.5):  # Sort by distance to centroid
             rect_width, rect_height = dimensions[0], dimensions[1]
 
             #Check if rectangles fit within the mask-area
@@ -99,7 +104,7 @@ def place_buildings(mask: np.ndarray, building_blueprints: list, amounts: dict[s
                     if all(not __plot_overlap__(new_rect, placed_building["rect"], min_distance) for placed_building in placed_buildings):
                         placed_buildings.append({"nametag": nametag, "rect": new_rect})
                         break
-
+    
     return placed_buildings
 
 def overlay_from_masks(img, *masks: np.ndarray) -> None:
