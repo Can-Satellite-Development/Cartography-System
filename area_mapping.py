@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import detectree as dtr
 import numpy as np
 import cv2
+import json
 
 def get_contours(mask: np.ndarray) -> np.ndarray:
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -70,14 +71,61 @@ def rectangles_overlap(rect1, rect2, min_distance):
         y2 + h2 + min_distance <= y1
     )
 
+def get_buildings(sort_priority: bool = True) -> list:
+    with open("buildings.json", "r") as f:
+        buildings = json.load(f)
+    
+    if sort_priority:
+        # Sorting by priority (descending) and then by size (descending)
+        return sorted(
+            buildings, 
+            key=lambda x: (x["priority"], x["size"][0] * x["size"][1]), 
+            reverse=True
+            )
+    else:
+        return buildings
+
+def place_buildings(mask: np.ndarray, building_blueprints: list, amounts: dict[str, int]) -> list:
+    # Get buildings from blueprints
+    buildings_to_place = []
+    for blueprint in building_blueprints:
+        # Place amount of blueprint specified
+        for _ in range(amounts[blueprint["name"]]):
+            buildings_to_place.append(blueprint)
+
+    # Place buildings
+    placed_buildings = []
+    for building in buildings_to_place:
+        nametag = building["name"]
+        dimensions = building["size"]
+
+        # Iterate over the mask
+        for x, y in np.argwhere(mask > 0): # x, y for positive mask points
+            rect_width, rect_height = dimensions[0], dimensions[1]
+
+            #Check if rectangles fit within the mask-area
+            if (x + rect_width <= mask.shape[1]) and (y + rect_height <= mask.shape[0]):
+                if np.all(mask[y:y + rect_height, x:x + rect_width] > 0):
+                    new_rect = (x, y, rect_width, rect_height)
+
+                    # Check building collision
+                    min_distance = 10
+                    if all(not rectangles_overlap(new_rect, placed_building["rect"], min_distance) for placed_building in placed_buildings):
+                        placed_buildings.append({"nametag": nametag, "rect": new_rect})
+                        break
+
+    return placed_buildings
+
 def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray, min_area_threshold: int = 2500) -> None:
     img = cv2.imread(img_path)
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
+    ## Masks
+
     # Combine tree and water masks to find free areas
-    combined_mask = np.logical_or(tree_mask > 0, water_mask > 0).astype(np.uint8)
+    nature_mask = np.logical_or(tree_mask > 0, water_mask > 0).astype(np.uint8)
     
-    free_area_mask = (combined_mask == 0).astype(np.uint8)  # Inverted mask to get free areas
+    free_area_mask = (nature_mask == 0).astype(np.uint8)  # Inverted mask to get free areas
 
     contours = get_contours(free_area_mask)
 
@@ -91,69 +139,75 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
             # Draw the contour on the cleaned mask if it is large enough
             cv2.drawContours(zero_mask, [cnt], -1, 255, thickness=cv2.FILLED)
 
-    # Overlay the free areas on the original image
-    zero_overlay = img_rgb.copy()
-    zero_overlay[zero_mask == 255] = (255, 0, 0)  # Red RGB for free areas
-    
-    alpha_transparency = 0.5
-
-    free_space_overlay = cv2.addWeighted(img_rgb, 1 - alpha_transparency, zero_overlay, alpha_transparency, 0)
-
-    # Develop Vegetation/Water Mask
-    nature_overlay = img_rgb.copy()
-    nature_overlay[water_mask > 0] = (0, 0, 255)  # Blue RGB for water
-    nature_overlay[tree_mask > 0] = (0, 255, 0)   # Green RGB for trees
-
-    nature_overlay = cv2.addWeighted(img_rgb, 1 - alpha_transparency, nature_overlay, alpha_transparency, 0)
-
     coast_mask = near_water_mask(zero_mask, water_mask)
 
     # Display the result
-    fig, axes = plt.subplots(1, 3, figsize=(10, 5))
+    fig, axes = plt.subplots(2, 3, figsize=(10, 5))
 
-    object_properties = [
-        [(40, 55), "HEP-Plant", 2],
-        [(25, 45), "res-building 1", 2],
-        [(25, 45), "res-building 2", 1],
-        [(25, 10), "workshop", 2]
-    ]
+    ## Buildings
 
-    # Sorting by priority (descending) and then by size (descending)
-    sorted_properties = sorted(
-        object_properties,
-        key=lambda x: (x[2], x[0][0] * x[0][1]),
-        reverse=True 
-    )
+    blueprints = get_buildings()
+    buildings = place_buildings(zero_mask, blueprints, {"res-building 1": 1, "res-building 2": 1, "workshop": 1, "HEP-Plant": 2})
     
-    placed_rectangles = []  
+    ## Overlays
+    
+    alpha_transparency = 0.5
 
-    # Overlay rectangles
-    for dimensions, nametag, _ in sorted_properties:
-        for x, y in np.argwhere(zero_mask > 0): # x, y for positive mask points
-            rect_width, rect_height = dimensions[0], dimensions[1]
-            #Check if rectangles fit within the mask-area
-            if (x + rect_width <= coast_mask.shape[1]) and (y + rect_height <= coast_mask.shape[0]):
-                if np.all(coast_mask[y:y + rect_height, x:x + rect_width] > 0):
-                    new_rect = (x, y, rect_width, rect_height)
+    # Water Overlay
+    water_overlay = img_rgb.copy()
+    water_overlay[water_mask > 0] = (0, 0, 255)  # Blue RGB for water
+    water_overlay = cv2.addWeighted(img_rgb, 1 - alpha_transparency, water_overlay, alpha_transparency, 0)
 
-                    # Check property collision
-                    min_distance = 10
-                    if all(not rectangles_overlap(new_rect, rect, min_distance) for rect in placed_rectangles):
-                        placed_rectangles.append(new_rect)
-                        rect = plt.Rectangle((x, y), rect_width, rect_height, linewidth=1, edgecolor="red", facecolor="none")
-                        axes[2].add_patch(rect)
+    # Tree Overlay
+    tree_overlay = img_rgb.copy()
+    tree_overlay[tree_mask > 0] = (0, 255, 0)   # Green RGB for trees
+    tree_overlay = cv2.addWeighted(img_rgb, 1 - alpha_transparency, tree_overlay, alpha_transparency, 0)
 
-                        axes[2].text(x + rect_width/2, y - 5, nametag, color="red", fontsize=6, ha="center")
-                        break
+    # Develop Vegetation/Water Overlay
+    nature_overlay = img_rgb.copy()
+    nature_overlay[water_mask > 0] = (0, 0, 255)  # Blue RGB for water
+    nature_overlay[tree_mask > 0] = (0, 255, 0)   # Green RGB for trees
+    nature_overlay = cv2.addWeighted(img_rgb, 1 - alpha_transparency, nature_overlay, alpha_transparency, 0)
 
-    axes[0].imshow(water_mask)
-    axes[0].set_title("Water Mask")
+    # Coast Overlay
+    coast_overlay = img_rgb.copy()
+    coast_overlay[coast_mask > 0] = (255, 255, 0)  # Yellow RGB for coast
+    coast_overlay = cv2.addWeighted(img_rgb, 1 - alpha_transparency, coast_overlay, alpha_transparency, 0)
 
-    axes[1].imshow(zero_mask)
-    axes[1].set_title("Zero Mask")
+    # Overlay the free areas on the original image
+    zero_overlay = img_rgb.copy()
+    zero_overlay[zero_mask == 255] = (255, 0, 0)  # Red RGB for free areas
+    zero_overlay = cv2.addWeighted(img_rgb, 1 - alpha_transparency, zero_overlay, alpha_transparency, 0)
 
-    axes[2].imshow(coast_mask)
-    axes[2].set_title("Coast Mask")
+    # Building Overlay
+    building_overlay = img_rgb.copy()
+
+    ## Display
+
+    axes[0][0].imshow(water_overlay)
+    axes[0][0].set_title("Water Overlay")
+
+    axes[0][1].imshow(tree_overlay)
+    axes[0][1].set_title("Tree Overlay")
+
+    axes[0][2].imshow(nature_overlay)
+    axes[0][2].set_title("Nature Overlay")
+
+    axes[1][0].imshow(coast_overlay)
+    axes[1][0].set_title("Coast Overlay (Coast Range: 200px)")
+
+    axes[1][1].imshow(zero_overlay)
+    axes[1][1].set_title("Zero Overlay")
+
+    axes[1][2].imshow(building_overlay)
+    axes[1][2].set_title("Building Overlay")
+    for building in buildings:
+        x, y, w, h = building["rect"]
+        nametag = building["nametag"]
+        rect = plt.Rectangle((x, y), w, h, linewidth=1, edgecolor="red", facecolor="none")
+        axes[1][2].add_patch(rect)
+
+        axes[1][2].text(x + w/2, y - 5, nametag, color="red", fontsize=6, ha="center")
 
     plt.tight_layout()
     plt.show()
