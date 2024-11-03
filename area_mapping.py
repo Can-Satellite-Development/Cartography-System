@@ -53,7 +53,8 @@ def get_zero_mask(tree_mask: np.ndarray, water_mask: np.ndarray) -> np.ndarray:
     # Inverted mask to get free areas
     free_area_mask = (combined_mask == 0).astype(np.uint8)
 
-    zero_mask =  hf.filter_artifacts(free_area_mask)
+    # zero_mask =  hf.filter_artifacts(free_area_mask)
+    zero_mask = free_area_mask
 
     return zero_mask
 
@@ -115,7 +116,13 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
                                         "water_and_coast": water_and_coast_mask}
                                    )
     
-    paths = hf.generate_paths(buildings)
+    # Generate List of paths
+    # A path is a list of points
+    paths_points = hf.generate_path_points(buildings, masks_and_cost_multipliers={
+        "zero": (zero_mask, 1), 
+        "trees": (tree_mask, 100), 
+        "water": (water_mask, 1000), 
+    })
 
     # Display the result
     fig, axes = plt.subplots(1, 2, figsize=(10, 5))
@@ -127,13 +134,19 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     axes[0].set_title("Nature Overlay")
 
     axes[1].imshow(areas_overlay)
-    axes[1].set_title("Areas & Buildings Overlay")
+    axes[1].set_title("Areas & Infrastructure Overlay")
 
     axes_index: int = 1
-    for path in paths:
-        (x1, y1), (x2, y2) = path
-        line = plt.Line2D([x1, x2], [y1, y2], linewidth=3, color=(0.3, 0.3, 0.3))
-        axes[axes_index].add_line(line)
+    # Display baths
+    for path_points in paths_points:
+        if path_points is not None:
+            for i, point in enumerate(path_points):
+                if i > 0:
+                    x1, y1 = point
+                    x2, y2 = path_points[i - 1]
+                    line = plt.Line2D([x1, x2], [y1, y2], linewidth=3, color="gray")
+                    axes[axes_index].add_line(line)
+    # Display buildings
     for building in buildings:
         x, y, w, h = building["rect"]
         rect = plt.Rectangle((x, y), w, h, linewidth=1, edgecolor="white", facecolor="none")

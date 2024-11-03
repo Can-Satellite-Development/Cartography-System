@@ -2,6 +2,7 @@ import numpy as np
 import json
 import cv2
 import networkx as nx
+import heapq
 
 def __plot_overlap__(rect1, rect2, min_distance):
     x1, y1, w1, h1 = rect1
@@ -187,7 +188,7 @@ def get_circumcircle(p1, p2, p3):
 def building_centers(buildings: list) -> np.ndarray:
     return np.array([(building["rect"][0] + building["rect"][2] // 2, building["rect"][1] + building["rect"][3] // 2) for building in buildings])
 
-def generate_paths(buildings: list) -> list[tuple[tuple]]:
+def generate_path_tree(buildings: list) -> list[tuple[tuple]]:
     centers = building_centers(buildings)
 
     # Generate paths between all centers using Delauney
@@ -209,3 +210,64 @@ def generate_paths(buildings: list) -> list[tuple[tuple]]:
         paths.append((p1, p2))
 
     return paths
+
+def astar(start: tuple, goal: tuple, masks: dict[str, np.ndarray], cost_multipliers: dict[str, float]) -> list[tuple]|None:
+    start, goal = tuple(start), tuple(goal)
+    rows, cols = list(masks.values())[0].shape
+
+    # Heuristic function: Manhattan distance
+    def heuristic(a, b):
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+    # Directions: including diagonals
+    directions = [
+        (1, 0), (-1, 0), (0, 1), (0, -1),    # cardinal directions
+        (1, 1), (1, -1), (-1, 1), (-1, -1)    # diagonal directions
+    ]
+
+    # Priority queue and costs dictionary
+    queue = [(0, start)]  # (cost, position)
+    costs = {start: 0}    # Cost from start to each position
+    came_from = {start: None}  # For reconstructing path
+
+    while queue:
+        current_cost, current = heapq.heappop(queue)
+
+        # Check if reached the goal
+        if current == goal:
+            path = []
+            while current:
+                path.append(current)
+                current = came_from[current]
+            return path[::-1]  # Return reversed path from start to goal
+
+        # Explore neighbors
+        for d in directions:
+            neighbor = (current[0] + d[0], current[1] + d[1])
+
+            # Check if the neighbor is within bounds
+            if 0 <= neighbor[0] < cols and 0 <= neighbor[1] < rows:
+                # Cost to move to neighbor (1 for cardinal, ~1.414 for diagonal)
+                move_cost = 1 if d in [(1, 0), (-1, 0), (0, 1), (0, -1)] else 1.414
+                # Apply mask multipliers
+                move_cost *= sum(cost_multipliers[name] for name in masks if masks[name][neighbor[1]][neighbor[0]] > 0)
+                new_cost = costs[current] + move_cost
+
+                # If the neighbor hasn't been visited or we found a cheaper path
+                if neighbor not in costs or new_cost < costs[neighbor]:
+                    costs[neighbor] = new_cost
+                    priority = new_cost + heuristic(neighbor, goal)
+                    heapq.heappush(queue, (priority, neighbor))
+                    came_from[neighbor] = current
+
+    return None  # No path found if loop completes without returning
+
+def generate_path_points(buildings: list, masks_and_cost_multipliers: dict[str, tuple[np.ndarray, float]]) -> list[list[tuple]]:
+    path_tree = generate_path_tree(buildings)
+
+    path_points = []
+    for p1, p2 in path_tree:
+        points = astar(p1, p2, masks={name: masks_and_cost_multipliers[name][0] for name in masks_and_cost_multipliers}, cost_multipliers={name: masks_and_cost_multipliers[name][1] for name in masks_and_cost_multipliers})
+        path_points.append(points)
+    
+    return path_points
