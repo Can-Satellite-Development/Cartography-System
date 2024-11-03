@@ -3,6 +3,7 @@
 1. Tree Detection Library: https://github.com/ortanaV2/detectree?tab=readme-ov-file
 2. Water Source Detection Library (Discussion): https://github.com/orgs/Can-Satellite-Development/discussions/6
 3. Info Update Discussion: https://github.com/orgs/Can-Satellite-Development/discussions/9
+4. Progress Updates (Discussion): https://github.com/orgs/Can-Satellite-Development/discussions/9
 ## Plans:
 - Infrastructure planning based on a given terrain with buildings and supply lines
 ## Output Examples
