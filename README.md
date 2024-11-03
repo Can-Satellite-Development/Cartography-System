@@ -12,4 +12,5 @@
 
 **After:**
 
-![](https://github.com/Can-Satellite-Development/Cartography-System/blob/main/output%20examples/result1.png?raw=true)
+![image](https://github.com/user-attachments/assets/fc2deaea-d6f2-4d62-8eb9-e939232a5348)
+
