@@ -2,7 +2,7 @@ import numpy as np
 import json
 import cv2
 import networkx as nx
-import heapq
+from queue import PriorityQueue
 
 def __plot_overlap__(rect1, rect2, min_distance):
     x1, y1, w1, h1 = rect1
@@ -215,11 +215,18 @@ def generate_path_tree(buildings: list) -> list[tuple[tuple]]:
 
 def astar(start: tuple, goal: tuple, masks: dict[str, np.ndarray], cost_multipliers: dict[str, float]) -> list[tuple]|None:
     start, goal = tuple(start), tuple(goal)
-    rows, cols = list(masks.values())[0].shape
+    rows, cols = masks["zero"].shape
 
-    # Heuristic function: Manhattan distance
+    # Precompute cost map
+    cost_map = np.zeros((rows, cols))
+    for name, mask in masks.items():
+        cost_map += mask * cost_multipliers[name]
+
+    # Heuristic function: Octile distance
     def heuristic(a, b):
-        return abs(a[0] - b[0]) + abs(a[1] - b[1])
+        D, D2 = 1, 1.414  # D for cardinal moves, D2 for diagonal moves
+        dx, dy = abs(a[0] - b[0]), abs(a[1] - b[1])
+        return D * (dx + dy) + (D2 - 2 * D) * min(dx, dy)
 
     # Directions: including diagonals
     directions = [
@@ -227,13 +234,14 @@ def astar(start: tuple, goal: tuple, masks: dict[str, np.ndarray], cost_multipli
         (1, 1), (1, -1), (-1, 1), (-1, -1)    # diagonal directions
     ]
 
-    # Priority queue and costs dictionary
-    queue = [(0, start)]  # (cost, position)
+    # Initialize PriorityQueue
+    queue = PriorityQueue()
+    queue.put((0, start))  # (cost, position)
     costs = {start: 0}    # Cost from start to each position
     came_from = {start: None}  # For reconstructing path
 
-    while queue:
-        current_cost, current = heapq.heappop(queue)
+    while not queue.empty():
+        current_cost, current = queue.get()
 
         # Check if reached the goal
         if current == goal:
@@ -252,14 +260,14 @@ def astar(start: tuple, goal: tuple, masks: dict[str, np.ndarray], cost_multipli
                 # Cost to move to neighbor (1 for cardinal, ~1.414 for diagonal)
                 move_cost = 1 if d in [(1, 0), (-1, 0), (0, 1), (0, -1)] else 1.414
                 # Apply mask multipliers
-                move_cost *= sum(cost_multipliers[name] for name in masks if masks[name][neighbor[1]][neighbor[0]] > 0)
+                move_cost *= cost_map[neighbor[1]][neighbor[0]]
                 new_cost = costs[current] + move_cost
 
                 # If the neighbor hasn't been visited or we found a cheaper path
                 if neighbor not in costs or new_cost < costs[neighbor]:
                     costs[neighbor] = new_cost
                     priority = new_cost + heuristic(neighbor, goal)
-                    heapq.heappush(queue, (priority, neighbor))
+                    queue.put((priority, neighbor))
                     came_from[neighbor] = current
 
     return None  # No path found if loop completes without returning
@@ -270,9 +278,9 @@ def get_connectors_from_centers(p1: np.ndarray, p2: np.ndarray, building_mask: n
     dir_vector = np.round(dir_vector).astype(int)
 
     # Move points out of building
-    while np.any(building_mask[p1[1]][p1[0]] > 0):
+    while building_mask[p1[1]][p1[0]] > 0:
         p1 -= dir_vector
-    while np.any(building_mask[p2[1]][p2[0]] > 0):
+    while building_mask[p2[1]][p2[0]] > 0:
         p2 += dir_vector
 
     return p1, p2
