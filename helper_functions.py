@@ -73,7 +73,7 @@ def get_buildings(sort_priority: bool = True) -> list:
     else:
         return buildings
 
-def place_buildings(blueprints: list, amounts: dict[str, int], masks: dict[str, np.ndarray]) -> list:
+def place_buildings(blueprints: list, amounts: dict[str, int], masks: dict[str, np.ndarray]) -> tuple[list, np.ndarray]:
     # Get buildings from blueprints
     buildings_to_place = []
     for blueprint in blueprints:
@@ -83,6 +83,7 @@ def place_buildings(blueprints: list, amounts: dict[str, int], masks: dict[str, 
 
     # Place buildings
     placed_buildings = []
+    building_mask = np.zeros_like(masks["zero"])
     for building in buildings_to_place:
         nametag = building["name"]
         dimensions = building["size"]
@@ -105,9 +106,10 @@ def place_buildings(blueprints: list, amounts: dict[str, int], masks: dict[str, 
                     min_distance = 10
                     if all(not __plot_overlap__(new_rect, placed_building["rect"], min_distance) for placed_building in placed_buildings):
                         placed_buildings.append({"nametag": nametag, "rect": new_rect})
+                        building_mask[y:y + rect_height, x:x + rect_width] = 1
                         break
     
-    return placed_buildings
+    return placed_buildings, building_mask
 
 def overlay_from_masks(img, *masks: np.ndarray) -> None:
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -262,11 +264,25 @@ def astar(start: tuple, goal: tuple, masks: dict[str, np.ndarray], cost_multipli
 
     return None  # No path found if loop completes without returning
 
+def get_connectors_from_centers(p1: np.ndarray, p2: np.ndarray, building_mask: np.ndarray):
+    dir_vector = (p1 - p2) / np.linalg.norm(p2 - p1)
+
+    dir_vector = np.round(dir_vector).astype(int)
+
+    # Move points out of building
+    while np.any(building_mask[p1[1]][p1[0]] > 0):
+        p1 -= dir_vector
+    while np.any(building_mask[p2[1]][p2[0]] > 0):
+        p2 += dir_vector
+
+    return p1, p2
+
 def generate_path_points(buildings: list, masks_and_cost_multipliers: dict[str, tuple[np.ndarray, float]]) -> list[list[tuple]]:
     path_tree = generate_path_tree(buildings)
 
     path_points = []
     for p1, p2 in path_tree:
+        p1, p2 = get_connectors_from_centers(p1, p2, masks_and_cost_multipliers['buildings'][0])
         points = astar(p1, p2, masks={name: masks_and_cost_multipliers[name][0] for name in masks_and_cost_multipliers}, cost_multipliers={name: masks_and_cost_multipliers[name][1] for name in masks_and_cost_multipliers})
         path_points.append(points)
     

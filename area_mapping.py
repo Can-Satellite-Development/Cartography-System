@@ -99,7 +99,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     water_and_coast_mask = np.logical_or(water_mask == 1, coast_mask == 1).astype(np.uint8)
 
     blueprints = hf.get_buildings()
-    buildings = hf.place_buildings(blueprints, 
+    buildings, building_mask = hf.place_buildings(blueprints, 
                                    amounts={
                                        "res-building 1": 2, 
                                        "res-building 2": 1, 
@@ -122,6 +122,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
         "zero": (zero_mask, 1), 
         "trees": (tree_mask, 100), 
         "water": (water_mask, 1000), 
+        "buildings": (building_mask, 100000),   # Buildings must be avoided at all costs
     })
 
     # Display the result
