@@ -295,3 +295,6 @@ def generate_path_points(buildings: list, masks_and_cost_multipliers: dict[str, 
         path_points.append(points)
     
     return path_points
+
+def reshape_mask(mask: np.ndarray, new_shape: tuple) -> np.ndarray:
+    return mask.reshape(new_shape).mean(axis=(1, 3))
