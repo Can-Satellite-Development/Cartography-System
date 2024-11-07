@@ -191,7 +191,7 @@ def get_circumcircle(p1, p2, p3):
 def building_centers(buildings: list) -> np.ndarray:
     return np.array([(building["rect"][0] + building["rect"][2] // 2, building["rect"][1] + building["rect"][3] // 2) for building in buildings])
 
-def generate_path_tree(buildings: list) -> list[tuple[tuple]]:
+def generate_path_tree(buildings: list, max_length: int|None = None) -> list[tuple[tuple]]:
     centers = building_centers(buildings)
 
     # Generate paths between all centers using Delauney
@@ -202,7 +202,8 @@ def generate_path_tree(buildings: list) -> list[tuple[tuple]]:
     for edge in edges:
         p1, p2 = centers[edge[0]], centers[edge[1]]
         distance = np.linalg.norm(p1 - p2)
-        graph.add_edge(edge[0], edge[1], weight=distance)
+        if max_length is None or distance <= max_length:  # Only add edges that are within the max length
+            graph.add_edge(edge[0], edge[1], weight=distance)
 
     # Create minimum spanning tree of graph
     mst: nx.Graph = nx.minimum_spanning_tree(graph)
@@ -286,8 +287,8 @@ def get_connectors_from_centers(p1: np.ndarray, p2: np.ndarray, building_mask: n
 
     return p1, p2
 
-def generate_path_points(buildings: list, masks_and_cost_multipliers: dict[str, tuple[np.ndarray, float]], resolution_factor: float = 1) -> list[list[tuple]]:
-    path_tree = generate_path_tree(buildings)
+def generate_path_points(buildings: list, masks_and_cost_multipliers: dict[str, tuple[np.ndarray, float]], resolution_factor: float = 1, max_distance: int|None = None) -> list[list[tuple]]:
+    path_tree = generate_path_tree(buildings, max_length=max_distance)
 
     masks = {name: scale_mask(masks_and_cost_multipliers[name][0], resolution_factor) for name in masks_and_cost_multipliers}
     cost_multipliers = {name: masks_and_cost_multipliers[name][1] for name in masks_and_cost_multipliers}
