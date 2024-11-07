@@ -4,6 +4,7 @@ import cv2
 import networkx as nx
 from queue import PriorityQueue
 import matplotlib.pyplot as plt
+import detectree as dtr
 
 def __plot_overlap__(rect1, rect2, min_distance):
     x1, y1, w1, h1 = rect1
@@ -31,7 +32,7 @@ def mask_range(mask: np.ndarray, contour_min_size: int = 1000, range_size: int =
 
     return near_mask
 
-def get_mask_regions(mask: np.ndarray) -> list:
+def get_mask_regions(mask: np.ndarray, min_size: int = 0) -> list:
     # Apply connected components to label each separate area
     num_labels, labels = cv2.connectedComponents(mask)
 
@@ -42,7 +43,10 @@ def get_mask_regions(mask: np.ndarray) -> list:
     for label in range(1, num_labels):
         # Create a new mask for each component
         component_mask = (labels == label).astype(np.uint8)
-        mask_regions.append(component_mask)
+        
+        # Check if the region's size is greater than the minimum size
+        if np.sum(component_mask) >= min_size:
+            mask_regions.append(component_mask)
     
     return mask_regions
 
@@ -312,6 +316,23 @@ def scale_mask(mask: np.ndarray, scale: float) -> np.ndarray:
 
 if __name__ == "__main__":
 
+    def get_tree_mask(img_path: str, expansion_thickness: int = 2, min_area: int = 10) -> np.ndarray:
+        y_pred = dtr.Classifier().predict_img(img_path)
+        tree_mask = y_pred.astype(np.uint8)
+
+        contours = get_contours(tree_mask)
+
+        # Draw Contours around vegetation areas based on "expansion-thickness"
+        expanded_mask = np.zeros_like(tree_mask) # new mask layer
+        for cnt in contours:
+            if cv2.contourArea(cnt) >= min_area:
+                cv2.fillPoly(expanded_mask, [cnt], 255)
+
+                if expansion_thickness > 0:
+                    cv2.drawContours(expanded_mask, [cnt], -1, 255, thickness=expansion_thickness)
+
+        return expanded_mask
+
     def get_water_mask(img_path: str, min_area_threshold: int = 500, water_kernel_size: int = 12) -> np.ndarray:
         img = cv2.imread(img_path)
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -337,23 +358,35 @@ if __name__ == "__main__":
 
         return (filtered_water_mask > 0).astype(np.uint8)
 
+    def get_zero_mask(tree_mask: np.ndarray, water_mask: np.ndarray) -> np.ndarray:
+        # Combine tree and water masks to find free areas
+        combined_mask = np.logical_or(tree_mask > 0, water_mask > 0).astype(np.uint8)
+
+        # Inverted mask to get free areas
+        free_area_mask = (combined_mask == 0).astype(np.uint8)
+
+        # zero_mask =  hf.filter_artifacts(free_area_mask)
+        zero_mask = free_area_mask
+
+        return zero_mask
+
+
     image_input_path = "./mocking-examples/main2.png"
     
     water_mask = get_water_mask(image_input_path)
+    tree_mask = get_tree_mask(image_input_path)
+    zero_mask = get_zero_mask(tree_mask, water_mask)
 
-    fig, axes = plt.subplots(1, 4, figsize=(10, 5))
+    zones = get_mask_regions(zero_mask, min_size=1000)
+    
+    fig, axes = plt.subplots(1, 1 + len(zones), figsize=(10, 5))
 
-    axes[0].imshow(scale_mask(water_mask, 1))
-    axes[0].set_title("1x Scaled Water Mask")
+    axes[0].imshow(zero_mask)
+    axes[0].set_title("Zero Mask")
 
-    axes[1].imshow(scale_mask(water_mask, 0.5))
-    axes[1].set_title("0.5x Scaled Water Mask")
-
-    axes[2].imshow(scale_mask(water_mask, 0.2))
-    axes[2].set_title("0.2x Scaled Water Mask")
-
-    axes[3].imshow(scale_mask(water_mask, 0.1))
-    axes[3].set_title("0.1x Scaled Water Mask")
+    for i, zone in enumerate(zones):
+        axes[i + 1].imshow(zone)
+        axes[i + 1].set_title(f"Zone {i + 1}")
     
     plt.tight_layout()
     plt.show()
