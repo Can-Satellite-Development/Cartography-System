@@ -118,7 +118,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     
     # Generate List of paths
     # A path is a list of points
-    paths_points = hf.generate_path_points(buildings, masks_and_cost_multipliers={
+    paths_points, bridge_points = hf.generate_path_points(buildings, masks_and_cost_multipliers={
         "zero": (zero_mask, 1), 
         "trees": (tree_mask, 100), 
         "water": (water_mask, 1000), 
@@ -145,7 +145,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
                 if i > 0:
                     x1, y1 = point
                     x2, y2 = path_points[i - 1]
-                    line = plt.Line2D([x1, x2], [y1, y2], linewidth=3, color="gray")
+                    line = plt.Line2D([x1, x2], [y1, y2], linewidth=3, color=("gray" if point not in bridge_points else "brown"))
                     axes[axes_index].add_line(line)
     # Display buildings
     for building in buildings:

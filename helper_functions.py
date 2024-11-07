@@ -294,14 +294,16 @@ def generate_path_points(buildings: list, masks_and_cost_multipliers: dict[str, 
     cost_multipliers = {name: masks_and_cost_multipliers[name][1] for name in masks_and_cost_multipliers}
 
     path_points = []
+    bridge_points = []
     for p1, p2 in path_tree:
         p1, p2 = get_connectors_from_centers(p1, p2, masks_and_cost_multipliers['buildings'][0])
         p1 = (int(p1[0] * resolution_factor), int(p1[1] * resolution_factor))
         p2 = (int(p2[0] * resolution_factor), int(p2[1] * resolution_factor))
         points = astar(p1, p2, masks=masks, cost_multipliers=cost_multipliers)
         path_points.append([(x // resolution_factor, y // resolution_factor) for x, y in points])
+        bridge_points.extend([(x // resolution_factor, y // resolution_factor) for x, y in points if masks['water'][y][x] > 0])
     
-    return path_points
+    return path_points, bridge_points
 
 def scale_mask(mask: np.ndarray, scale: float) -> np.ndarray:
     new_mask = cv2.resize(mask, (int(mask.shape[1] * scale), int(mask.shape[0] * scale)), interpolation=cv2.INTER_LINEAR)
