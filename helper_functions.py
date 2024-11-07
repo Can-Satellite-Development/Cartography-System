@@ -3,6 +3,7 @@ import json
 import cv2
 import networkx as nx
 from queue import PriorityQueue
+import matplotlib.pyplot as plt
 
 def __plot_overlap__(rect1, rect2, min_distance):
     x1, y1, w1, h1 = rect1
@@ -285,16 +286,39 @@ def get_connectors_from_centers(p1: np.ndarray, p2: np.ndarray, building_mask: n
 
     return p1, p2
 
-def generate_path_points(buildings: list, masks_and_cost_multipliers: dict[str, tuple[np.ndarray, float]]) -> list[list[tuple]]:
+def generate_path_points(buildings: list, masks_and_cost_multipliers: dict[str, tuple[np.ndarray, float]], resolution_factor: float) -> list[list[tuple]]:
     path_tree = generate_path_tree(buildings)
 
     path_points = []
     for p1, p2 in path_tree:
         p1, p2 = get_connectors_from_centers(p1, p2, masks_and_cost_multipliers['buildings'][0])
-        points = astar(p1, p2, masks={name: masks_and_cost_multipliers[name][0] for name in masks_and_cost_multipliers}, cost_multipliers={name: masks_and_cost_multipliers[name][1] for name in masks_and_cost_multipliers})
-        path_points.append(points)
+        p1 = (int(p1[0] * resolution_factor), int(p1[1] * resolution_factor))
+        p2 = (int(p2[0] * resolution_factor), int(p2[1] * resolution_factor))
+        points = astar(p1, p2, masks={name: scale_mask(masks_and_cost_multipliers[name][0], 1 // resolution_factor) for name in masks_and_cost_multipliers}, cost_multipliers={name: masks_and_cost_multipliers[name][1] for name in masks_and_cost_multipliers})
+        path_points.append([(x // resolution_factor, y // resolution_factor) for x, y in points])
     
     return path_points
 
-def reshape_mask(mask: np.ndarray, new_shape: tuple) -> np.ndarray:
-    return mask.reshape(new_shape).mean(axis=(1, 3))
+def scale_mask(mask: np.ndarray, pixel_size: int) -> np.ndarray:
+    pixel_size = int(pixel_size)
+
+    # Adjust original mask dimensions to be divisible by block_size by slicing off extra rows/columns
+    rows = (mask.shape[0] // pixel_size) * pixel_size
+    cols = (mask.shape[1] // pixel_size) * pixel_size
+    trimmed_mask = mask[:rows, :cols]
+
+    # Calculate new mask dimensions
+    new_rows = rows // pixel_size
+    new_cols = cols // pixel_size
+
+    # Create an empty mask to store the mean values
+    new_mask = np.zeros((new_rows, new_cols))
+
+    # Fill the new mask with the mean of each block
+    for i in range(0, rows, pixel_size):
+        for j in range(0, cols, pixel_size):
+            block = trimmed_mask[i:i+pixel_size, j:j+pixel_size]
+            block_mean = block.mean()
+            new_mask[i // pixel_size, j // pixel_size] = block_mean
+    
+    return new_mask

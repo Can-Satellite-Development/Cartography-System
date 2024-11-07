@@ -123,7 +123,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
         "trees": (tree_mask, 100), 
         "water": (water_mask, 1000), 
         "buildings": (building_mask, 100000),   # Buildings must be avoided at all costs
-    })
+    }, resolution_factor=1.0)
 
     # Display the result
     fig, axes = plt.subplots(1, 2, figsize=(10, 5))
