@@ -286,39 +286,71 @@ def get_connectors_from_centers(p1: np.ndarray, p2: np.ndarray, building_mask: n
 
     return p1, p2
 
-def generate_path_points(buildings: list, masks_and_cost_multipliers: dict[str, tuple[np.ndarray, float]], resolution_factor: float) -> list[list[tuple]]:
+def generate_path_points(buildings: list, masks_and_cost_multipliers: dict[str, tuple[np.ndarray, float]], resolution_factor: float = 1) -> list[list[tuple]]:
     path_tree = generate_path_tree(buildings)
+
+    masks = {name: scale_mask(masks_and_cost_multipliers[name][0], resolution_factor) for name in masks_and_cost_multipliers}
+    cost_multipliers = {name: masks_and_cost_multipliers[name][1] for name in masks_and_cost_multipliers}
 
     path_points = []
     for p1, p2 in path_tree:
         p1, p2 = get_connectors_from_centers(p1, p2, masks_and_cost_multipliers['buildings'][0])
         p1 = (int(p1[0] * resolution_factor), int(p1[1] * resolution_factor))
         p2 = (int(p2[0] * resolution_factor), int(p2[1] * resolution_factor))
-        points = astar(p1, p2, masks={name: scale_mask(masks_and_cost_multipliers[name][0], 1 // resolution_factor) for name in masks_and_cost_multipliers}, cost_multipliers={name: masks_and_cost_multipliers[name][1] for name in masks_and_cost_multipliers})
+        points = astar(p1, p2, masks=masks, cost_multipliers=cost_multipliers)
         path_points.append([(x // resolution_factor, y // resolution_factor) for x, y in points])
     
     return path_points
 
-def scale_mask(mask: np.ndarray, pixel_size: int) -> np.ndarray:
-    pixel_size = int(pixel_size)
+def scale_mask(mask: np.ndarray, scale: float) -> np.ndarray:
+    new_mask = cv2.resize(mask, (int(mask.shape[1] * scale), int(mask.shape[0] * scale)), interpolation=cv2.INTER_LINEAR)
 
-    # Adjust original mask dimensions to be divisible by block_size by slicing off extra rows/columns
-    rows = (mask.shape[0] // pixel_size) * pixel_size
-    cols = (mask.shape[1] // pixel_size) * pixel_size
-    trimmed_mask = mask[:rows, :cols]
-
-    # Calculate new mask dimensions
-    new_rows = rows // pixel_size
-    new_cols = cols // pixel_size
-
-    # Create an empty mask to store the mean values
-    new_mask = np.zeros((new_rows, new_cols))
-
-    # Fill the new mask with the mean of each block
-    for i in range(0, rows, pixel_size):
-        for j in range(0, cols, pixel_size):
-            block = trimmed_mask[i:i+pixel_size, j:j+pixel_size]
-            block_mean = block.mean()
-            new_mask[i // pixel_size, j // pixel_size] = block_mean
-    
     return new_mask
+
+if __name__ == "__main__":
+
+    def get_water_mask(img_path: str, min_area_threshold: int = 500, water_kernel_size: int = 12) -> np.ndarray:
+        img = cv2.imread(img_path)
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+        # Color Range
+        lower_water = np.array([90, 50, 50])
+        upper_water = np.array([140, 255, 255])
+
+        mask_water = cv2.inRange(hsv, lower_water, upper_water)
+
+        # Morphological operations (close small gaps in layer)
+        water_kernel = np.ones((water_kernel_size, water_kernel_size), np.uint8)
+        closed_water_mask = cv2.morphologyEx(mask_water, cv2.MORPH_CLOSE, water_kernel)
+
+        # Find contours in water segments
+        contours = get_contours(closed_water_mask)
+
+        # Filter out artifacts (small water areas based on given threshold)
+        filtered_water_mask = np.zeros_like(closed_water_mask)
+        for cnt in contours:
+            if cv2.contourArea(cnt) >= min_area_threshold:
+                cv2.drawContours(filtered_water_mask, [cnt], -1, 255, thickness=cv2.FILLED)
+
+        return (filtered_water_mask > 0).astype(np.uint8)
+
+    image_input_path = "./mocking-examples/main2.png"
+    
+    water_mask = get_water_mask(image_input_path)
+
+    fig, axes = plt.subplots(1, 4, figsize=(10, 5))
+
+    axes[0].imshow(scale_mask(water_mask, 1))
+    axes[0].set_title("1x Scaled Water Mask")
+
+    axes[1].imshow(scale_mask(water_mask, 0.5))
+    axes[1].set_title("0.5x Scaled Water Mask")
+
+    axes[2].imshow(scale_mask(water_mask, 0.2))
+    axes[2].set_title("0.2x Scaled Water Mask")
+
+    axes[3].imshow(scale_mask(water_mask, 0.1))
+    axes[3].set_title("0.1x Scaled Water Mask")
+    
+    plt.tight_layout()
+    plt.show()

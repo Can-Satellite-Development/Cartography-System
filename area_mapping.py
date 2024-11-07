@@ -123,7 +123,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
         "trees": (tree_mask, 100), 
         "water": (water_mask, 1000), 
         "buildings": (building_mask, 100000),   # Buildings must be avoided at all costs
-    }, resolution_factor=1.0)
+    }, resolution_factor=0.35)  # Generate paths using masks scaled down to 35%
 
     # Display the result
     fig, axes = plt.subplots(1, 2, figsize=(10, 5))
@@ -138,7 +138,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     axes[1].set_title("Areas & Infrastructure Overlay")
 
     axes_index: int = 1
-    # Display baths
+    # Display paths
     for path_points in paths_points:
         if path_points is not None:
             for i, point in enumerate(path_points):
