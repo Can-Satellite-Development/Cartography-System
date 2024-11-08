@@ -5,6 +5,7 @@ import networkx as nx
 from queue import PriorityQueue
 import matplotlib.pyplot as plt
 import detectree as dtr
+from scipy.spatial import KDTree
 
 def __plot_overlap__(rect1, rect2, min_distance):
     x1, y1, w1, h1 = rect1
@@ -313,6 +314,37 @@ def scale_mask(mask: np.ndarray, scale: float) -> np.ndarray:
     new_mask = cv2.resize(mask, (int(mask.shape[1] * scale), int(mask.shape[0] * scale)), interpolation=cv2.INTER_LINEAR)
 
     return new_mask
+
+def get_mask_exit_point(mask: np.ndarray, direction_vector: np.ndarray, step_size: float = 1.0) -> np.ndarray:
+    current_point = np.array(get_mask_centroid(mask))
+    direction = np.array(direction_vector) / np.linalg.norm(direction_vector)  # Normalize direction
+
+    while current_point.astype(int) in np.argwhere(mask > 0):
+        current_point += step_size * direction
+
+    return current_point  # This point is outside the mask
+
+def get_nearst_point_in_mask(mask: np.ndarray, point: tuple) -> tuple[tuple, float]:
+    # Convert mask to a list of coordinates
+    mask_points = np.array([(y, x) for y in range(mask.shape[0]) for x in range(mask.shape[1]) if mask[y, x] > 0])
+
+    # Build KD-Tree
+    tree = KDTree(mask_points)
+
+    # Find closest point
+    distance, index = tree.query(point)
+    closest_point = mask_points[index]
+
+    return closest_point, distance
+
+def get_mask_edge_points(mask: np.ndarray) -> list[tuple]:
+    # Use Canny edge detection to find the edges
+    edges = cv2.Canny(mask.astype(np.uint8) * 255, 100, 200)
+
+    # Get the coordinates of the edge pixels
+    edge_points = np.column_stack(np.where(edges > 0))
+
+    return edge_points
 
 if __name__ == "__main__":
 
