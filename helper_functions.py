@@ -6,6 +6,7 @@ from queue import PriorityQueue
 import matplotlib.pyplot as plt
 import detectree as dtr
 from scipy.spatial import KDTree
+from scipy.ndimage import binary_dilation
 
 def __plot_overlap__(rect1, rect2, min_distance):
     x1, y1, w1, h1 = rect1
@@ -79,41 +80,35 @@ def get_buildings(sort_priority: bool = True) -> list:
     else:
         return buildings
 
-def place_buildings(blueprints: list, amounts: dict[str, int], masks: dict[str, np.ndarray]) -> tuple[list, np.ndarray]:
-    # Get buildings from blueprints
-    buildings_to_place = []
-    for blueprint in blueprints:
-        # Place amount of blueprint specified
-        for _ in range(amounts[blueprint["name"]]):
-            buildings_to_place.append(blueprint)
-
+def place_buildings(blueprints: list, masks: dict[str, np.ndarray]) -> tuple[list, np.ndarray]:
     # Place buildings
     placed_buildings = []
     building_mask = np.zeros_like(masks["zero"])
-    for building in buildings_to_place:
-        nametag = building["name"]
-        dimensions = building["size"]
-        location = building["location"]
+    for blueprint in blueprints:
+        for _ in range(blueprint["amount"]):
+            nametag = blueprint["name"]
+            dimensions = blueprint["size"]
+            location = blueprint["location"]
 
-        # Get possible location mask
-        mask = masks[location]
-        centroid = get_mask_centroid(mask)
+            # Get possible location mask
+            mask = masks[location]
+            centroid = get_mask_centroid(mask)
 
-        # Iterate over the mask
-        for y, x in sorted(np.argwhere(mask > 0), key=lambda x: ((x[0] - centroid[0]) ** 2 + (x[1] - centroid[1]) ** 2) ** 0.5):  # Sort by distance to centroid
-            rect_width, rect_height = dimensions[0], dimensions[1]
+            # Iterate over the mask
+            for y, x in sorted(np.argwhere(mask > 0), key=lambda x: ((x[0] - centroid[0]) ** 2 + (x[1] - centroid[1]) ** 2) ** 0.5):  # Sort by distance to centroid
+                rect_width, rect_height = dimensions[0], dimensions[1]
 
-            #Check if rectangles fit within the mask-area
-            if (x + rect_width <= mask.shape[1]) and (y + rect_height <= mask.shape[0]):
-                if np.all(mask[y:y + rect_height, x:x + rect_width] > 0):
-                    new_rect = (x, y, rect_width, rect_height)
+                #Check if rectangles fit within the mask-area
+                if (x + rect_width <= mask.shape[1]) and (y + rect_height <= mask.shape[0]):
+                    if np.all(mask[y:y + rect_height, x:x + rect_width] > 0):
+                        new_rect = (x, y, rect_width, rect_height)
 
-                    # Check building collision
-                    min_distance = 10
-                    if all(not __plot_overlap__(new_rect, placed_building["rect"], min_distance) for placed_building in placed_buildings):
-                        placed_buildings.append({"nametag": nametag, "rect": new_rect})
-                        building_mask[y:y + rect_height, x:x + rect_width] = 1
-                        break
+                        # Check building collision
+                        min_distance = 10
+                        if all(not __plot_overlap__(new_rect, placed_building["rect"], min_distance) for placed_building in placed_buildings):
+                            placed_buildings.append({"nametag": nametag, "rect": new_rect})
+                            building_mask[y:y + rect_height, x:x + rect_width] = 1
+                            break
     
     return placed_buildings, building_mask
 
@@ -318,11 +313,46 @@ def scale_mask(mask: np.ndarray, scale: float) -> np.ndarray:
 def get_mask_exit_point(mask: np.ndarray, direction_vector: np.ndarray, step_size: float = 1.0) -> np.ndarray:
     current_point = np.array(get_mask_centroid(mask))
     direction = np.array(direction_vector) / np.linalg.norm(direction_vector)  # Normalize direction
-
+    
     while current_point.astype(int) in np.argwhere(mask > 0):
         current_point += step_size * direction
 
     return current_point  # This point is outside the mask
+  
+def get_mask_boundry(mask: np.ndarray) -> np.ndarray:
+    return binary_dilation(mask) & ~mask
+
+def is_mask_enclosed(mask: np.ndarray, enclosing_mask: np.ndarray) -> bool:
+    mask_boundry = get_mask_boundry(mask)
+
+    return np.all(enclosing_mask[mask_boundry > 0] > 0)
+
+def switch_enclaves(*masks: np.ndarray, enclosed_by_one: bool = True, enclave_size_threshold: int = 2500) -> None:
+    for mask in masks:
+        other_masks = [m for m in masks if m is not mask]
+        # Iterate over each region
+        regions = get_mask_regions(mask)
+        for region in regions:
+            # Check if region is an enclave (size and enclosement check)
+            if np.sum(region) < enclave_size_threshold:
+                # If enclosed_by_one, check if region is enclosed by only one mask
+                if enclosed_by_one:
+                    for other_mask in other_masks:
+                        if is_mask_enclosed(region, other_mask):
+                            # Switch region to other mask
+                            mask[region > 0] = 0
+                            other_mask[region > 0] = 255
+                            break
+                # Else give region to other mask with longest border to region
+                else:
+                    mask[region > 0] = 0
+                    mask_with_longest_border = max(other_masks, key=lambda m: border_length(region, m))
+                    mask_with_longest_border[region > 0] = 255
+
+def border_length(mask1: np.ndarray, mask2: np.ndarray) -> int:
+    mask1_boundry = get_mask_boundry(mask1)
+
+    return np.sum(mask1_boundry & mask2)
 
 def get_nearst_point_in_mask(mask: np.ndarray, point: tuple) -> tuple[tuple, float]:
     # Convert mask to a list of coordinates
