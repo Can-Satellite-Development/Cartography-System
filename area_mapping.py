@@ -53,7 +53,6 @@ def get_zero_mask(tree_mask: np.ndarray, water_mask: np.ndarray) -> np.ndarray:
     # Inverted mask to get free areas
     free_area_mask = (combined_mask == 0).astype(np.uint8)
 
-    # zero_mask =  hf.filter_artifacts(free_area_mask)
     zero_mask = free_area_mask
 
     return zero_mask
@@ -91,8 +90,13 @@ def get_forest_edge_mask(tree_mask: np.ndarray, zero_mask: np.ndarray, contour_m
 def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray) -> None:
     img = cv2.imread(img_path)
 
-    nature_mask = np.logical_or(tree_mask == 1, water_mask == 1).astype(np.uint8)
     zero_mask = get_zero_mask(tree_mask, water_mask)
+
+    # Against fully by one mask enclosed zones, specifically artifacts from tree detection
+    hf.switch_enclaves(zero_mask, tree_mask, water_mask, enclosed_by_one=True, enclave_size_threshold=2500)
+    # Against all artifacts, much smaller threshold as to only get rid of small artifacts and not actually useful areas
+    hf.switch_enclaves(zero_mask, tree_mask, water_mask, enclosed_by_one=False, enclave_size_threshold=500)
+
     coast_mask = get_coast_mask(zero_mask, water_mask)
     inland_mask = get_inland_mask(zero_mask, coast_mask)
     forest_edge_mask = get_forest_edge_mask(tree_mask, zero_mask)
@@ -100,14 +104,6 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
 
     blueprints = hf.get_buildings()
     buildings, building_mask = hf.place_buildings(blueprints, 
-                                   amounts={
-                                       "res-building 1": 2, 
-                                       "res-building 2": 1, 
-                                       "workshop": 1, 
-                                       "HEP-Plant": 2, 
-                                       "lumberjack": 1, 
-                                       "port": 1, 
-                                       "mine": 1}, 
                                     masks={
                                         "zero": zero_mask,
                                         "coast": coast_mask, 
@@ -145,7 +141,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
                 if i > 0:
                     x1, y1 = point
                     x2, y2 = path_points[i - 1]
-                    line = plt.Line2D([x1, x2], [y1, y2], linewidth=3, color=("gray" if point not in bridge_points else "brown"))
+                    line = plt.Line2D([x1, x2], [y1, y2], linewidth=3, color=((0.8, 0.8, 0.8) if point not in bridge_points else (0.8, 0.6, 0.4)))
                     axes[axes_index].add_line(line)
     # Display buildings
     for building in buildings:
