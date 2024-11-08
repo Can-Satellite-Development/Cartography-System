@@ -3,42 +3,49 @@
         "name": "HEP-Plant", 
         "size": [30, 35], 
         "priority": 2, 
-        "location": "water_and_coast"
+        "location": "water_and_coast", 
+        "amount": 2
     }, 
     {
         "name": "res-building 1", 
         "size": [25, 45], 
         "priority": 2, 
-        "location": "zero"
+        "location": "zero", 
+        "amount": 2
     }, 
     {
         "name": "res-building 2", 
         "size": [25, 45], 
         "priority": 1, 
-        "location": "zero"
+        "location": "zero", 
+        "amount": 1
     }, 
     {
         "name": "workshop", 
         "size": [25, 10], 
         "priority": 2, 
-        "location": "zero"
+        "location": "zero", 
+        "amount": 1
     }, 
     {
         "name": "lumberjack", 
         "size": [30, 30], 
         "priority": 3, 
-        "location": "forest_edge"
+        "location": "forest_edge", 
+        "amount": 1
     }, 
     {
         "name": "port", 
         "size": [20, 20], 
-        "priority": 4, 
-        "location": "coast"
+        "priority": 3, 
+        "location": "coast", 
+        "amount": 1
     }, 
     {
         "name": "mine", 
         "size": [30, 30], 
         "priority": 3, 
-        "location": "inland"
+        "location": "inland", 
+        "amount": 1
     }
 ]
