@@ -4,6 +4,8 @@ import cv2
 import networkx as nx
 from queue import PriorityQueue
 import matplotlib.pyplot as plt
+import detectree as dtr
+from scipy.spatial import KDTree
 from scipy.ndimage import binary_dilation
 
 def __plot_overlap__(rect1, rect2, min_distance):
@@ -32,7 +34,7 @@ def mask_range(mask: np.ndarray, contour_min_size: int = 1000, range_size: int =
 
     return near_mask
 
-def get_mask_regions(mask: np.ndarray) -> list:
+def get_mask_regions(mask: np.ndarray, min_size: int = 0) -> list:
     # Apply connected components to label each separate area
     num_labels, labels = cv2.connectedComponents(mask)
 
@@ -43,7 +45,10 @@ def get_mask_regions(mask: np.ndarray) -> list:
     for label in range(1, num_labels):
         # Create a new mask for each component
         component_mask = (labels == label).astype(np.uint8)
-        mask_regions.append(component_mask)
+        
+        # Check if the region's size is greater than the minimum size
+        if np.sum(component_mask) >= min_size:
+            mask_regions.append(component_mask)
     
     return mask_regions
 
@@ -305,6 +310,15 @@ def scale_mask(mask: np.ndarray, scale: float) -> np.ndarray:
 
     return new_mask
 
+def get_mask_exit_point(mask: np.ndarray, direction_vector: np.ndarray, step_size: float = 1.0) -> np.ndarray:
+    current_point = np.array(get_mask_centroid(mask))
+    direction = np.array(direction_vector) / np.linalg.norm(direction_vector)  # Normalize direction
+    
+    while current_point.astype(int) in np.argwhere(mask > 0):
+        current_point += step_size * direction
+
+    return current_point  # This point is outside the mask
+  
 def get_mask_boundry(mask: np.ndarray) -> np.ndarray:
     return binary_dilation(mask) & ~mask
 
@@ -340,50 +354,24 @@ def border_length(mask1: np.ndarray, mask2: np.ndarray) -> int:
 
     return np.sum(mask1_boundry & mask2)
 
-if __name__ == "__main__":
+def get_nearst_point_in_mask(mask: np.ndarray, point: tuple) -> tuple[tuple, float]:
+    # Convert mask to a list of coordinates
+    mask_points = np.array([(y, x) for y in range(mask.shape[0]) for x in range(mask.shape[1]) if mask[y, x] > 0])
 
-    def get_water_mask(img_path: str, min_area_threshold: int = 500, water_kernel_size: int = 12) -> np.ndarray:
-        img = cv2.imread(img_path)
-        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    # Build KD-Tree
+    tree = KDTree(mask_points)
 
-        # Color Range
-        lower_water = np.array([90, 50, 50])
-        upper_water = np.array([140, 255, 255])
+    # Find closest point
+    distance, index = tree.query(point)
+    closest_point = mask_points[index]
 
-        mask_water = cv2.inRange(hsv, lower_water, upper_water)
+    return closest_point, distance
 
-        # Morphological operations (close small gaps in layer)
-        water_kernel = np.ones((water_kernel_size, water_kernel_size), np.uint8)
-        closed_water_mask = cv2.morphologyEx(mask_water, cv2.MORPH_CLOSE, water_kernel)
+def get_mask_edge_points(mask: np.ndarray) -> list[tuple]:
+    # Use Canny edge detection to find the edges
+    edges = cv2.Canny(mask.astype(np.uint8) * 255, 100, 200)
 
-        # Find contours in water segments
-        contours = get_contours(closed_water_mask)
+    # Get the coordinates of the edge pixels
+    edge_points = np.column_stack(np.where(edges > 0))
 
-        # Filter out artifacts (small water areas based on given threshold)
-        filtered_water_mask = np.zeros_like(closed_water_mask)
-        for cnt in contours:
-            if cv2.contourArea(cnt) >= min_area_threshold:
-                cv2.drawContours(filtered_water_mask, [cnt], -1, 255, thickness=cv2.FILLED)
-
-        return (filtered_water_mask > 0).astype(np.uint8)
-
-    image_input_path = "./mocking-examples/main2.png"
-    
-    water_mask = get_water_mask(image_input_path)
-
-    fig, axes = plt.subplots(1, 4, figsize=(10, 5))
-
-    axes[0].imshow(scale_mask(water_mask, 1))
-    axes[0].set_title("1x Scaled Water Mask")
-
-    axes[1].imshow(scale_mask(water_mask, 0.5))
-    axes[1].set_title("0.5x Scaled Water Mask")
-
-    axes[2].imshow(scale_mask(water_mask, 0.2))
-    axes[2].set_title("0.2x Scaled Water Mask")
-
-    axes[3].imshow(scale_mask(water_mask, 0.1))
-    axes[3].set_title("0.1x Scaled Water Mask")
-    
-    plt.tight_layout()
-    plt.show()
+    return edge_points
