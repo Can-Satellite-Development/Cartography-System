@@ -51,10 +51,8 @@ def get_zero_mask(tree_mask: np.ndarray, water_mask: np.ndarray) -> np.ndarray:
     combined_mask = np.logical_or(tree_mask > 0, water_mask > 0).astype(np.uint8)
 
     # Inverted mask to get free areas
-    free_area_mask = (combined_mask == 0).astype(np.uint8)
-
-    zero_mask = free_area_mask
-
+    zero_mask = (combined_mask == 0).astype(np.uint8)
+    
     return zero_mask
 
 def get_gabor_filter_mask(img, ksize=15, sigma=4.4, theta=0.2, lambd=9.8, gamma=0.2, psi=0.885) -> np.ndarray:
