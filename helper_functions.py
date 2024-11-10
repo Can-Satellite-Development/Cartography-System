@@ -3,8 +3,6 @@ import json
 import cv2
 import networkx as nx
 from queue import PriorityQueue
-import matplotlib.pyplot as plt
-import detectree as dtr
 from scipy.spatial import KDTree
 from scipy.ndimage import binary_dilation
 
@@ -137,7 +135,7 @@ def filter_artifacts(mask: np.ndarray, min_area_threshold: int = 2500) -> np.nda
     return filtered_mask
 
 # Custom Delaunay triangulation function
-def custom_delaunay(points):
+def custom_delaunay(points) -> set[tuple[int, int]]:
     edges = set()
     num_points = len(points)
     for i in range(num_points):
@@ -159,7 +157,7 @@ def custom_delaunay(points):
                     edges.add((k, i))
     return edges
 
-def get_circumcircle(p1, p2, p3):
+def get_circumcircle(p1, p2, p3) ->  tuple[np.ndarray, float]:
     A = np.array([
         [p1[0], p1[1], 1],
         [p2[0], p2[1], 1],
@@ -232,14 +230,14 @@ def astar(start: tuple, goal: tuple, masks: dict[str, np.ndarray], cost_multipli
 
     # Directions: including diagonals
     directions = [
-        (1, 0), (-1, 0), (0, 1), (0, -1),    # cardinal directions
-        (1, 1), (1, -1), (-1, 1), (-1, -1)    # diagonal directions
+        (1, 0), (-1, 0), (0, 1), (0, -1),  # cardinal directions
+        (1, 1), (1, -1), (-1, 1), (-1, -1)  # diagonal directions
     ]
 
     # Initialize PriorityQueue
     queue = PriorityQueue()
     queue.put((0, start))  # (cost, position)
-    costs = {start: 0}    # Cost from start to each position
+    costs = {start: 0}  # Cost from start to each position
     came_from = {start: None}  # For reconstructing path
 
     while not queue.empty():
@@ -274,7 +272,7 @@ def astar(start: tuple, goal: tuple, masks: dict[str, np.ndarray], cost_multipli
 
     return None  # No path found if loop completes without returning
 
-def get_connectors_from_centers(p1: np.ndarray, p2: np.ndarray, building_mask: np.ndarray):
+def get_connectors_from_centers(p1: np.ndarray, p2: np.ndarray, building_mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     dir_vector = (p1 - p2) / np.linalg.norm(p2 - p1)
 
     dir_vector = np.round(dir_vector).astype(int)
@@ -330,7 +328,6 @@ def is_mask_enclosed(mask: np.ndarray, enclosing_mask: np.ndarray) -> bool:
 def switch_enclaves(*masks: np.ndarray, enclosed_by_one: bool = True, enclave_size_threshold: int = 2500) -> None:
     for mask in masks:
         other_masks = [m for m in masks if m is not mask]
-        # Iterate over each region
         regions = get_mask_regions(mask)
         for region in regions:
             # Check if region is an enclave (size and enclosement check)
@@ -375,3 +372,43 @@ def get_mask_edge_points(mask: np.ndarray) -> list[tuple]:
     edge_points = np.column_stack(np.where(edges > 0))
 
     return edge_points
+
+def get_values_in_radius(mask: np.ndarray, coords: tuple[int, int], radius: int) -> list:
+    """Returns a list of values from a mask based on given radius"""
+    h, w = mask.shape
+    values = []
+
+    for i in range(-radius, radius + 1):
+        for j in range(-radius, radius + 1):
+            if np.sqrt(i**2 + j**2) <= radius:
+                nx, ny = coords[0] + i, coords[1] + j
+                if 0 <= nx < w and 0 <= ny < h:
+                    values.append(mask[ny, nx])
+
+    return values
+
+def set_radius(mask: np.ndarray, coords: tuple[int, int], radius: int, value: int) -> np.ndarray:
+    """Returns mask with drawn radius (set to 1 or 0)"""
+    new_mask = mask.copy()
+    h, w = new_mask.shape
+
+    for i in range(-radius, radius + 1):
+        for j in range(-radius, radius + 1):
+            # Calculate center
+            if np.sqrt(i**2 + j**2) <= radius:
+                nx, ny = coords[0] + i, coords[1] + j
+                # Check if coordinates in mask-barrier
+                if 0 <= nx < w and 0 <= ny < h:
+                    new_mask[ny, nx] = value  # set value
+
+    return new_mask
+
+def refactor_rescale(mask: np.ndarray, scaling_factor: float) -> np.ndarray:
+    """Scales mask with factor and rescales it back to original shape"""
+    scaled_mask = scale_mask(mask=mask, scale=scaling_factor)
+    return cv2.resize(scaled_mask, tuple(reversed(mask.shape)), interpolation=cv2.INTER_NEAREST)
+
+def subtract_masks(mask_1: np.ndarray, mask_2: np.ndarray) -> np.ndarray:
+    result_mask = np.copy(mask_1)
+    result_mask[mask_2 == 1] = 0
+    return result_mask
