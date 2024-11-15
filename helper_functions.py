@@ -3,6 +3,7 @@ import json
 import cv2
 import networkx as nx
 from queue import PriorityQueue
+from time import gmtime, strftime
 from scipy.spatial import KDTree
 from scipy.ndimage import binary_dilation
 
@@ -412,3 +413,6 @@ def subtract_masks(mask_1: np.ndarray, mask_2: np.ndarray) -> np.ndarray:
     result_mask = np.copy(mask_1)
     result_mask[mask_2 == 1] = 0
     return result_mask
+
+def paste_debugging(message: str) -> None:
+    print(f"{strftime('%H:%M:%S', gmtime())} - {message}")
