@@ -102,28 +102,28 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     img = cv2.imread(img_path)
 
     zero_mask = get_zero_mask(tree_mask, water_mask)
-    hf.paste_debugging("zero mask generated")
+    hf.paste_debugging("zero mask generated")  #* Debugging (Time Paste)
 
     # Against fully by one mask enclosed zones, specifically artifacts from tree detection
     hf.switch_enclaves(zero_mask, tree_mask, water_mask, enclosed_by_one=True, enclave_size_threshold=2500)
-    hf.paste_debugging("remove enclave artifacts threshold=2500 (True)")
+    hf.paste_debugging("remove enclave artifacts threshold=2500 (True)")  #* Debugging (Time Paste)
 
     # Against all artifacts, much smaller threshold as to only get rid of small artifacts and not actually useful areas
     hf.switch_enclaves(zero_mask, tree_mask, water_mask, enclosed_by_one=False, enclave_size_threshold=500)
-    hf.paste_debugging("remove enclave artifacts threshold=500 (False)")
+    hf.paste_debugging("remove enclave artifacts threshold=500 (False)")  #* Debugging (Time Paste)
 
     coast_mask = get_coast_mask(zero_mask, water_mask)
-    hf.paste_debugging("coast mask generated")
+    hf.paste_debugging("coast mask generated")  #* Debugging (Time Paste)
     inland_mask = get_inland_mask(zero_mask, coast_mask)
-    hf.paste_debugging("inland mask generated")
+    hf.paste_debugging("inland mask generated")  #* Debugging (Time Paste)
     forest_edge_mask = get_forest_edge_mask(tree_mask, zero_mask)
-    hf.paste_debugging("forest edge mask generated")
+    hf.paste_debugging("forest edge mask generated")  #* Debugging (Time Paste)
     water_and_coast_mask = np.logical_or(water_mask == 1, coast_mask == 1).astype(np.uint8)
-    hf.paste_debugging("water & coast mask generated")
+    hf.paste_debugging("water & coast mask generated")  #* Debugging (Time Paste)
     
 
     blueprints = hf.get_buildings()
-    hf.paste_debugging("blueprint received")
+    hf.paste_debugging("blueprint received")  #* Debugging (Time Paste)
     buildings, building_mask = hf.place_buildings(blueprints, 
                                     masks={
                                         "zero": zero_mask,
@@ -132,7 +132,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
                                         "forest_edge": forest_edge_mask, 
                                         "water_and_coast": water_and_coast_mask}
                                    )
-    hf.paste_debugging("buildings placed")
+    hf.paste_debugging("buildings placed")  #* Debugging (Time Paste)
     
     # Generate List of paths
     paths_points, bridge_points = hf.generate_path_points(buildings, masks_and_cost_multipliers={
@@ -141,7 +141,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
         "water": (water_mask, 1000), 
         "buildings": (building_mask, 100000),  # Buildings must be avoided at all costs
     }, resolution_factor=0.35, max_distance=None)  # Generate paths using masks scaled down to 35%, with a maximum distance between points of e.g. 100 pixels (deactivated by None)
-    hf.paste_debugging("paths points generated")
+    hf.paste_debugging("paths points generated")  #* Debugging (Time Paste)
 
     # Display the result
     fig, axes = plt.subplots(1, 2, figsize=(10, 5))
@@ -149,7 +149,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     alpha: float = 0.5
     nature_overlay = hf.overlay_from_masks(img, (water_mask, (0, 0, 255), alpha), (tree_mask, (0, 255, 0), alpha))
     areas_overlay = hf.overlay_from_masks(img, (inland_mask, (255, 0, 0), alpha), (coast_mask, (0, 100, 100), alpha), (forest_edge_mask, (0, 255, 0), alpha))
-    hf.paste_debugging("overlays created")
+    hf.paste_debugging("overlays created")  #* Debugging (Time Paste)
 
     axes[0].imshow(nature_overlay)
     axes[0].set_title("Nature Overlay")
@@ -168,7 +168,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
                     x2, y2 = path_points[i - 1]
                     line = plt.Line2D([x1, x2], [y1, y2], linewidth=3, color=((0.8, 0.8, 0.8) if point not in bridge_points else (0.8, 0.6, 0.4)))
                     axes[axes_index].add_line(line)
-    hf.paste_debugging("displayed paths")
+    hf.paste_debugging("displayed paths")  #* Debugging (Time Paste)
 
     # Display buildings
     for building in buildings:
@@ -176,7 +176,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
         rect = plt.Rectangle((x, y), w, h, linewidth=1, edgecolor="white", facecolor="none")
         axes[axes_index].add_patch(rect)
         axes[axes_index].text(x + w/2, y - 5, building["nametag"], color="white", fontsize=6, ha="center")
-    hf.paste_debugging("displayed buildings")
+    hf.paste_debugging("displayed buildings")  #* Debugging (Time Paste)
 
     plt.tight_layout()
     plt.show()
@@ -184,10 +184,10 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
 if __name__ == "__main__":
     image_input_path = "./mocking-examples/main4.png"
 
-    hf.paste_debugging("start with dataset load")
+    hf.paste_debugging("start with dataset load")  #* Debugging (Time Paste)
     tree_mask = get_tree_mask(image_input_path)
-    hf.paste_debugging("tree mask generated")
+    hf.paste_debugging("tree mask generated")  #* Debugging (Time Paste)
     water_mask = get_water_mask(image_input_path)
-    hf.paste_debugging("water mask generated")
+    hf.paste_debugging("water mask generated")  #* Debugging (Time Paste)
 
     overlay_mapping(image_input_path, tree_mask, water_mask)
