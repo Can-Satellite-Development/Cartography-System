@@ -50,8 +50,7 @@ def get_water_mask(img_path: str, min_area_threshold: int = 500, water_kernel_si
             # Get gabor filter mask values from given radius
             radius_values: list = hf.get_values_in_radius(mask=gabor_filter_mask, coords=(x, y), radius=radius)
             # Check if collision with land occurs
-            collision: bool = sum(radius_values) >= 1
-            if not collision:
+            if not sum(radius_values) >= 1:
                 # Expand radius if smooth area detected
                 water_mask = hf.set_radius(mask=water_mask, coords=(x, y), radius=radius, value=1)
 
