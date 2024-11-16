@@ -7,12 +7,12 @@ from area_mapping import overlay_mapping, get_tree_mask, get_water_mask
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
-# Funktion zum Aktualisieren des Plots basierend auf dem Bild
-def update_plot():
+# Function to update the plot based on the image
+def update_plot(loading=False):
     overlay = img.copy()
     alpha: float = 0.5
 
-    # Masken anwenden
+    # Apply masks
     if coast_var.get():
         coast_color_overlay = np.zeros_like(img)
         coast_color_overlay[coast_mask > 0] = (174, 235, 52)[::-1]
@@ -40,26 +40,43 @@ def update_plot():
 
     # Update matplotlib plot
     ax.clear()
+
+    # Show "Loading..." text when loading flag is set
+    if loading:
+        ax.text(0.5, 0.5, 'Loading...', color='black', fontsize=18, ha='center', va='center', transform=ax.transAxes)
+    else:
+        ax.text(0.5, 0.5, '', color='white', fontsize=18, ha='center', va='center', transform=ax.transAxes)
+
     ax.set_facecolor((0.121, 0.121, 0.121))
     ax.imshow(cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB))
     canvas.draw()
 
-# Funktion zum Laden eines neuen Bildes basierend auf der Auswahl im Dropdown-Menü
+# Function to load a new image based on the selection in the dropdown
 def load_image(event=None):
-    global img, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask
-    # Das ausgewählte Bild laden
-    img_path = os.path.join("./mocking_examples", image_selection.get())
-    img = cv2.imread(img_path)
-    
-    # Masken für das neue Bild berechnen
-    coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask = overlay_mapping(
-        img_path, get_tree_mask(img_path), get_water_mask(img_path), dashboard=True
-    )
-    
-    # Plot mit den neuen Masken aktualisieren
-    update_plot()
+    update_plot(loading=True)  # Show "Loading..." text before loading masks
 
-# Tkinter-Hauptfenster erstellen
+    global img, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask
+    
+    # Delay loading and calculating masks to ensure the "Loading..." text is shown
+    def update_masks():
+        global img, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask
+        
+        # Load the selected image
+        img_path = os.path.join("./mocking_examples", image_selection.get())
+        img = cv2.imread(img_path)
+        
+        # Calculate masks for the new image
+        coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask = overlay_mapping(
+            img_path, get_tree_mask(img_path), get_water_mask(img_path), dashboard=True
+        )
+        
+        # Update plot with new masks
+        update_plot(loading=False)  # Remove "Loading..." text and show new masks
+
+    # Delay mask loading using `after` to ensure the text is shown
+    root.after(100, update_masks)
+
+# Create Tkinter main window
 root = tk.Tk()
 root.title("Mask Dashboard")
 
@@ -67,14 +84,14 @@ root.title("Mask Dashboard")
 sidebar = tk.Frame(root, width=250, bg="#c4c4c4")
 sidebar.pack(side=tk.LEFT, fill=tk.Y)
 
-# Variablen für Masken
+# Variables for masks
 coast_var = tk.BooleanVar(value=True)
 inland_var = tk.BooleanVar(value=True)
 forest_edge_var = tk.BooleanVar(value=True)
 tree_var = tk.BooleanVar(value=True)
 water_var = tk.BooleanVar(value=True)
 
-# Labels und Checkbuttons für die Masken
+# Labels and checkbuttons for masks
 ttk.Label(sidebar, text="Display Masks", font=("Arial", 12, "bold")).pack(pady=10)
 ttk.Checkbutton(sidebar, text="Coast Mask", variable=coast_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
 ttk.Checkbutton(sidebar, text="Inland Mask", variable=inland_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
@@ -82,22 +99,22 @@ ttk.Checkbutton(sidebar, text="Forest Edge Mask", variable=forest_edge_var, comm
 ttk.Checkbutton(sidebar, text="Tree Mask", variable=tree_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
 ttk.Checkbutton(sidebar, text="Water Mask", variable=water_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
 
-# Dropdown-Menü für die Auswahl eines Bildes
+# Dropdown menu for selecting an image
 image_files = [f for f in os.listdir("./mocking_examples") if f.endswith(".png")]
 image_selection = ttk.Combobox(sidebar, values=image_files)
 image_selection.pack(padx=10, pady=10)
 image_selection.bind("<<ComboboxSelected>>", load_image)
 
-# Standardbild laden und anzeigen
-img_path = os.path.join("./mocking_examples", image_files[0])  # Erstes Bild auswählen
+# Load and display the default image
+img_path = os.path.join("./mocking_examples", image_files[0])  # Select first image
 img = cv2.imread(img_path)
 
-# Masken für das erste Bild berechnen
+# Calculate masks for the first image
 coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask = overlay_mapping(
     img_path, get_tree_mask(img_path), get_water_mask(img_path), dashboard=True
 )
 
-# Matplotlib-Plot erstellen
+# Create matplotlib plot
 fig = Figure(figsize=(6, 4))
 ax = fig.add_subplot(111)
 
@@ -105,7 +122,7 @@ canvas = FigureCanvasTkAgg(fig, master=root)
 canvas_widget = canvas.get_tk_widget()
 canvas_widget.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
-# Plot initialisieren
+# Initialize plot
 update_plot()
 
 root.mainloop()
