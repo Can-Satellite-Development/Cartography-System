@@ -119,7 +119,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     hf.paste_debugging("forest edge mask generated")  #* Debugging (Time Paste)
     water_and_coast_mask = np.logical_or(water_mask == 1, coast_mask == 1).astype(np.uint8)
     hf.paste_debugging("water & coast mask generated")  #* Debugging (Time Paste)
-    
+
     blueprints = hf.get_buildings()
     hf.paste_debugging("blueprint received")  #* Debugging (Time Paste)
     buildings, building_mask = hf.place_buildings(blueprints, 
@@ -142,7 +142,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     hf.paste_debugging("paths points generated")  #* Debugging (Time Paste)
 
     # return masks for dashboard data
-    if dashboard: return coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask
+    if dashboard: return coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points
 
     # Display the result
     fig, axes = plt.subplots(1, 2, figsize=(10, 5))
@@ -183,7 +183,7 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     plt.show()
 
 if __name__ == "__main__":
-    image_input_path = "./mocking-examples/main4.png"
+    image_input_path = "./mocking_examples/main2.png"
 
     hf.paste_debugging("start with dataset load")  #* Debugging (Time Paste)
     tree_mask = get_tree_mask(image_input_path)

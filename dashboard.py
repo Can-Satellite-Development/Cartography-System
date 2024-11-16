@@ -2,15 +2,16 @@ import cv2
 import os
 import numpy as np
 import tkinter as tk
-from tkinter import ttk
+import matplotlib.pyplot as plt
 from area_mapping import overlay_mapping, get_tree_mask, get_water_mask
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+from tkinter import ttk
 
 # Function to update the plot based on the image
 def update_plot(loading=False):
     overlay = img.copy()
-    alpha: float = 0.5
+    alpha: float = 0.35
 
     # Apply masks
     if coast_var.get():
@@ -42,31 +43,59 @@ def update_plot(loading=False):
     ax.clear()
 
     # Show "Loading..." text when loading flag is set
-    if loading:
-        ax.text(0.5, 0.5, 'Loading...', color='black', fontsize=18, ha='center', va='center', transform=ax.transAxes)
-    else:
-        ax.text(0.5, 0.5, '', color='white', fontsize=18, ha='center', va='center', transform=ax.transAxes)
+    ax.text(0.5, 0.5, 'Loading...' if loading else "", color='black', fontsize=18, ha='center', va='center', transform=ax.transAxes)
 
     ax.set_facecolor((0.121, 0.121, 0.121))
     ax.imshow(cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB))
+
+    # Display paths if path layer is enabled
+    if path_var.get():
+        for path_points in paths_points:
+            if path_points is not None:
+                for i, point in enumerate(path_points):
+                    if i > 0:
+                        x1, y1 = path_points[i - 1]
+                        x2, y2 = point
+                        line = plt.Line2D(
+                            [x1, x2], [y1, y2],
+                            linewidth=3,
+                            color=(0.7, 0.7, 0.7) if point not in bridge_points else (0.8, 0.6, 0.4)
+                        )
+                        ax.add_line(line)  # Add the path line
+
+    # Display buildings if building layer is enabled
+    if building_var.get():
+        for building in buildings:
+            x, y, w, h = building["rect"]
+            rect = plt.Rectangle(
+                (x, y), w, h,
+                linewidth=1, edgecolor="white", facecolor="none"
+            )
+            ax.add_patch(rect)  # Draw the building rectangle
+            ax.text(
+                x + w / 2, y - 5,
+                building["nametag"],
+                color="white", fontsize=6, ha="center"
+            )
+
     canvas.draw()
 
 # Function to load a new image based on the selection in the dropdown
 def load_image(event=None):
     update_plot(loading=True)  # Show "Loading..." text before loading masks
 
-    global img, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask
+    global img, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points
     
     # Delay loading and calculating masks to ensure the "Loading..." text is shown
     def update_masks():
-        global img, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask
+        global img, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points
         
         # Load the selected image
         img_path = os.path.join("./mocking_examples", image_selection.get())
         img = cv2.imread(img_path)
         
         # Calculate masks for the new image
-        coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask = overlay_mapping(
+        coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points = overlay_mapping(
             img_path, get_tree_mask(img_path), get_water_mask(img_path), dashboard=True
         )
         
@@ -90,14 +119,18 @@ inland_var = tk.BooleanVar(value=True)
 forest_edge_var = tk.BooleanVar(value=True)
 tree_var = tk.BooleanVar(value=True)
 water_var = tk.BooleanVar(value=True)
+building_var = tk.BooleanVar(value=True)
+path_var = tk.BooleanVar(value=True)
 
 # Labels and checkbuttons for masks
-ttk.Label(sidebar, text="Display Masks", font=("Arial", 12, "bold")).pack(pady=10)
+ttk.Label(sidebar, text="Toggle Layers", font=("Arial", 12, "bold")).pack(pady=10)
 ttk.Checkbutton(sidebar, text="Coast Mask", variable=coast_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
 ttk.Checkbutton(sidebar, text="Inland Mask", variable=inland_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
 ttk.Checkbutton(sidebar, text="Forest Edge Mask", variable=forest_edge_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
 ttk.Checkbutton(sidebar, text="Tree Mask", variable=tree_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
 ttk.Checkbutton(sidebar, text="Water Mask", variable=water_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
+ttk.Checkbutton(sidebar, text="Buildings", variable=building_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
+ttk.Checkbutton(sidebar, text="Paths", variable=path_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
 
 # Dropdown menu for selecting an image
 image_files = [f for f in os.listdir("./mocking_examples") if f.endswith(".png")]
@@ -109,8 +142,8 @@ image_selection.bind("<<ComboboxSelected>>", load_image)
 img_path = os.path.join("./mocking_examples", image_files[0])  # Select first image
 img = cv2.imread(img_path)
 
-# Calculate masks for the first image
-coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask = overlay_mapping(
+# Calculate masks for the first image (predefine globals)
+coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points = overlay_mapping(
     img_path, get_tree_mask(img_path), get_water_mask(img_path), dashboard=True
 )
 
