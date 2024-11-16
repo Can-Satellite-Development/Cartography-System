@@ -97,7 +97,7 @@ def get_forest_edge_mask(tree_mask: np.ndarray, zero_mask: np.ndarray, contour_m
     
     return forest_edge_mask
 
-def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray) -> None:
+def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray, dashboard: bool = False) -> tuple[np.ndarray] | None:
     img = cv2.imread(img_path)
 
     zero_mask = get_zero_mask(tree_mask, water_mask)
@@ -120,7 +120,6 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     water_and_coast_mask = np.logical_or(water_mask == 1, coast_mask == 1).astype(np.uint8)
     hf.paste_debugging("water & coast mask generated")  #* Debugging (Time Paste)
     
-
     blueprints = hf.get_buildings()
     hf.paste_debugging("blueprint received")  #* Debugging (Time Paste)
     buildings, building_mask = hf.place_buildings(blueprints, 
@@ -141,6 +140,9 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
         "buildings": (building_mask, 100000),  # Buildings must be avoided at all costs
     }, resolution_factor=0.35, max_distance=None)  # Generate paths using masks scaled down to 35%, with a maximum distance between points of e.g. 100 pixels (deactivated by None)
     hf.paste_debugging("paths points generated")  #* Debugging (Time Paste)
+
+    # return masks for dashboard data
+    if dashboard: return coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask
 
     # Display the result
     fig, axes = plt.subplots(1, 2, figsize=(10, 5))
