@@ -45,7 +45,6 @@ def update_plot(loading=False):
     # Show "Loading..." text when loading flag is set
     ax.text(0.5, 0.5, 'Loading...' if loading else "", color='black', fontsize=18, ha='center', va='center', transform=ax.transAxes)
 
-    ax.set_facecolor((0.121, 0.121, 0.121))
     ax.imshow(cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB))
 
     # Display paths if path layer is enabled
@@ -107,10 +106,10 @@ def load_image(event=None):
 
 # Create Tkinter main window
 root = tk.Tk()
-root.title("Mask Dashboard")
+root.title("Cartography Dashboard")
 
 # Sidebar
-sidebar = tk.Frame(root, width=250, bg="#c4c4c4")
+sidebar = tk.Frame(root, width=250, bg="#1f1f1f")
 sidebar.pack(side=tk.LEFT, fill=tk.Y)
 
 # Variables for masks
@@ -122,21 +121,54 @@ water_var = tk.BooleanVar(value=True)
 building_var = tk.BooleanVar(value=True)
 path_var = tk.BooleanVar(value=True)
 
-# Labels and checkbuttons for masks
-ttk.Label(sidebar, text="Toggle Layers", font=("Arial", 12, "bold")).pack(pady=10)
-ttk.Checkbutton(sidebar, text="Coast Mask", variable=coast_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
-ttk.Checkbutton(sidebar, text="Inland Mask", variable=inland_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
-ttk.Checkbutton(sidebar, text="Forest Edge Mask", variable=forest_edge_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
-ttk.Checkbutton(sidebar, text="Tree Mask", variable=tree_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
-ttk.Checkbutton(sidebar, text="Water Mask", variable=water_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
-ttk.Checkbutton(sidebar, text="Buildings", variable=building_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
-ttk.Checkbutton(sidebar, text="Paths", variable=path_var, command=update_plot).pack(anchor="w", padx=10, pady=5)
+style = ttk.Style()
+
+dark_bg = "#2e2e2e"
+light_bg = "#3a3a3a"
+text_color = "#828282"
+highlight_color = "#5a5a5a"
+
+# Checkbox Style
+style.configure(
+    "Dark.TCheckbutton",
+    background=dark_bg,
+    foreground=text_color,
+    font=("Arial", 10),
+    indicatorcolor=light_bg,
+    indicatormargin=5,
+    indicatordiameter=15,
+)
+
+# Checkbox Hover Style
+style.map(
+    "Dark.TCheckbutton",
+    background=[("active", dark_bg)],
+    indicatorcolor=[("active", light_bg), ("!active", dark_bg)],  # Farben für den Indikator
+)
+
+# Label Style
+style.configure(
+    "Dark.TLabel",
+    background=dark_bg,
+    foreground=text_color,
+    font=("Arial", 12, "bold")
+)
 
 # Dropdown menu for selecting an image
 image_files = [f for f in os.listdir("./mocking_examples") if f.endswith(".png")]
-image_selection = ttk.Combobox(sidebar, values=image_files)
+image_selection = ttk.Combobox(sidebar, values=image_files, style="TCombobox")
 image_selection.pack(padx=10, pady=10)
 image_selection.bind("<<ComboboxSelected>>", load_image)
+
+# Labels and checkbuttons for masks
+ttk.Label(sidebar, text="Toggle Layers", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
+ttk.Checkbutton(sidebar, text="Coast Mask", variable=coast_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
+ttk.Checkbutton(sidebar, text="Inland Mask", variable=inland_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
+ttk.Checkbutton(sidebar, text="Forest Edge Mask", variable=forest_edge_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
+ttk.Checkbutton(sidebar, text="Tree Mask", variable=tree_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
+ttk.Checkbutton(sidebar, text="Water Mask", variable=water_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
+ttk.Checkbutton(sidebar, text="Buildings", variable=building_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
+ttk.Checkbutton(sidebar, text="Paths", variable=path_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
 
 # Load and display the default image
 img_path = os.path.join("./mocking_examples", image_files[0])  # Select first image
@@ -148,8 +180,21 @@ coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, pat
 )
 
 # Create matplotlib plot
-fig = Figure(figsize=(6, 4))
+fig = Figure(figsize=(8, 6))
 ax = fig.add_subplot(111)
+
+fig.patch.set_facecolor('#2e2e2e')  # Dunkelgrau
+
+# Achsenfarben auf Weiß setzen
+axes_colors = '#7d7d7d'
+ax.spines['bottom'].set_color(axes_colors)
+ax.spines['left'].set_color(axes_colors)
+ax.spines['top'].set_color(axes_colors)
+ax.spines['right'].set_color(axes_colors)
+ax.tick_params(colors=axes_colors)
+ax.xaxis.label.set_color(axes_colors)
+ax.yaxis.label.set_color(axes_colors)
+ax.title.set_color(axes_colors)
 
 canvas = FigureCanvasTkAgg(fig, master=root)
 canvas_widget = canvas.get_tk_widget()
