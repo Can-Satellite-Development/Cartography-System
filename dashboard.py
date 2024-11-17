@@ -143,7 +143,7 @@ style.configure(
 style.map(
     "Dark.TCheckbutton",
     background=[("active", dark_bg)],
-    indicatorcolor=[("active", light_bg), ("!active", dark_bg)],  # Farben für den Indikator
+    indicatorcolor=[("active", light_bg), ("!active", dark_bg)],
 )
 
 # Label Style
@@ -183,9 +183,8 @@ coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, pat
 fig = Figure(figsize=(8, 6))
 ax = fig.add_subplot(111)
 
-fig.patch.set_facecolor('#2e2e2e')  # Dunkelgrau
+fig.patch.set_facecolor('#2e2e2e')
 
-# Achsenfarben auf Weiß setzen
 axes_colors = '#7d7d7d'
 ax.spines['bottom'].set_color(axes_colors)
 ax.spines['left'].set_color(axes_colors)

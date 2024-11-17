@@ -97,7 +97,7 @@ def get_forest_edge_mask(tree_mask: np.ndarray, zero_mask: np.ndarray, contour_m
     
     return forest_edge_mask
 
-def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray, dashboard: bool = False) -> tuple[np.ndarray] | None:
+def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray, dashboard: bool = False, config: dict = {}) -> tuple[np.ndarray] | None:
     img = cv2.imread(img_path)
 
     zero_mask = get_zero_mask(tree_mask, water_mask)
