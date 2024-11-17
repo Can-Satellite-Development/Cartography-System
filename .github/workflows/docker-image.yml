@@ -20,4 +20,4 @@ jobs:
       run: docker build -t ghcr.io/$(echo ${{ github.actor }} | tr '[:upper:]' '[:lower:]')/my-app:latest .
 
     - name: Push Docker image
-      run: docker push ghcr.io/${{ github.actor }}/my-app:latest
+      run: docker push ghcr.io/$(echo ${{ github.actor }} | tr '[:upper:]' '[:lower:]')/my-app:latest
