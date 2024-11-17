@@ -14,10 +14,10 @@ def get_tree_mask(img_path: str, expansion_thickness: int = 2, min_area: int = 1
     expanded_mask = np.zeros_like(tree_mask)  # new mask layer
     for cnt in contours:
         if cv2.contourArea(cnt) >= min_area:
-            cv2.fillPoly(expanded_mask, [cnt], 255)
+            cv2.fillPoly(expanded_mask, [cnt], 1)  # Debug: Changed to 1 instead of 255
 
             if expansion_thickness > 0:
-                cv2.drawContours(expanded_mask, [cnt], -1, 255, thickness=expansion_thickness)
+                cv2.drawContours(expanded_mask, [cnt], -1, 1, thickness=expansion_thickness)  # Debug: Changed to 1 instead of 255
 
     return expanded_mask
 
@@ -86,8 +86,8 @@ def get_coast_mask(zero_mask: np.ndarray, water_mask: np.ndarray, water_source_m
 
 def get_inland_mask(zero_mask: np.ndarray, coast_mask: np.ndarray) -> np.ndarray:
     # Convert masks to binary masks
-    zero_mask = (zero_mask > 0).astype(np.uint8) * 255
-    coast_mask = (coast_mask > 0).astype(np.uint8) * 255
+    zero_mask = (zero_mask > 0).astype(np.uint8) * 1  # Debug: Changed to 1 instead of 255
+    coast_mask = (coast_mask > 0).astype(np.uint8) * 1  # Debug: Changed to 1 instead of 255
 
     return cv2.bitwise_and(zero_mask, cv2.bitwise_not(coast_mask))
 
