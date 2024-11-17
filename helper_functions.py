@@ -29,7 +29,7 @@ def mask_range(mask: np.ndarray, contour_min_size: int = 1000, range_size: int =
     # Add radius around contours to mask
     for cnt in contours:
         if cv2.contourArea(cnt) >= contour_min_size:
-            cv2.drawContours(near_mask, [cnt], -1, 255, thickness=range_size)
+            cv2.drawContours(near_mask, [cnt], -1, 1, thickness=range_size)  # Debug: Changed to 1 instead of 255
 
     return near_mask
 
@@ -131,7 +131,7 @@ def filter_artifacts(mask: np.ndarray, min_area_threshold: int = 2500) -> np.nda
 
     for cnt in contours:
         if cv2.contourArea(cnt) >= min_area_threshold:
-            cv2.drawContours(filtered_mask, [cnt], -1, 255, thickness=cv2.FILLED)
+            cv2.drawContours(filtered_mask, [cnt], -1, 1, thickness=cv2.FILLED)  # Debug: Changed to 1 instead of 255
 
     return filtered_mask
 
@@ -339,13 +339,13 @@ def switch_enclaves(*masks: np.ndarray, enclosed_by_one: bool = True, enclave_si
                         if is_mask_enclosed(region, other_mask):
                             # Switch region to other mask
                             mask[region > 0] = 0
-                            other_mask[region > 0] = 255
+                            other_mask[region > 0] = 1  # Debug: Changed to 1 instead of 255
                             break
                 # Else give region to other mask with longest border to region
                 else:
                     mask[region > 0] = 0
                     mask_with_longest_border = max(other_masks, key=lambda m: border_length(region, m))
-                    mask_with_longest_border[region > 0] = 255
+                    mask_with_longest_border[region > 0] = 1  # Debug: Changed to 1 instead of 255
 
 def border_length(mask1: np.ndarray, mask2: np.ndarray) -> int:
     mask1_boundry = get_mask_boundry(mask1)
@@ -367,7 +367,7 @@ def get_nearst_point_in_mask(mask: np.ndarray, point: tuple) -> tuple[tuple, flo
 
 def get_mask_edge_points(mask: np.ndarray) -> list[tuple]:
     # Use Canny edge detection to find the edges
-    edges = cv2.Canny(mask.astype(np.uint8) * 255, 100, 200)
+    edges = cv2.Canny(mask.astype(np.uint8) * 1, 100, 200)  # Debug: Changed to 1 instead of 255
 
     # Get the coordinates of the edge pixels
     edge_points = np.column_stack(np.where(edges > 0))
@@ -402,7 +402,7 @@ def set_radius(mask: np.ndarray, coords: tuple[int, int], radius: int, value: in
                 if 0 <= nx < w and 0 <= ny < h:
                     new_mask[ny, nx] = value  # set value
 
-    return new_mask
+    return new_mask.astype(np.uint8)
 
 def refactor_rescale(mask: np.ndarray, scaling_factor: float) -> np.ndarray:
     """Scales mask with factor and rescales it back to original shape"""
