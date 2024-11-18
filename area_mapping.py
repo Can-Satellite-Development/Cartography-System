@@ -97,9 +97,7 @@ def get_forest_edge_mask(tree_mask: np.ndarray, zero_mask: np.ndarray, contour_m
     
     return forest_edge_mask
 
-def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray, dashboard: bool = False) -> tuple[np.ndarray] | None:
-    img = cv2.imread(img_path)
-
+def mask_deployment(tree_mask: np.ndarray, water_mask: np.ndarray) -> tuple[np.ndarray]:
     zero_mask = get_zero_mask(tree_mask, water_mask)
     hf.paste_debugging("zero mask generated")  #* Debugging (Time Paste)
 
@@ -141,47 +139,9 @@ def overlay_mapping(img_path: str, tree_mask: np.ndarray, water_mask: np.ndarray
     }, resolution_factor=0.35, max_distance=None)  # Generate paths using masks scaled down to 35%, with a maximum distance between points of e.g. 100 pixels (deactivated by None)
     hf.paste_debugging("paths points generated")  #* Debugging (Time Paste)
 
-    # return masks for dashboard data
-    if dashboard: return coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points
+    return (coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points)
 
-    # Display the result
-    fig, axes = plt.subplots(1, 2, figsize=(10, 5))
-
-    alpha: float = 0.5
-    nature_overlay = hf.overlay_from_masks(img, (water_mask, (0, 0, 255), alpha), (tree_mask, (0, 255, 0), alpha))
-    areas_overlay = hf.overlay_from_masks(img, (inland_mask, (255, 0, 0), alpha), (coast_mask, (0, 100, 100), alpha), (forest_edge_mask, (0, 255, 0), alpha))
-    hf.paste_debugging("overlays created")  #* Debugging (Time Paste)
-
-    axes[0].imshow(nature_overlay)
-    axes[0].set_title("Nature Overlay")
-
-    axes[1].imshow(areas_overlay)
-    axes[1].set_title("Areas & Infrastructure Overlay")
-
-    axes_index: int = 1  # On which mask is being plotted
-
-    # Display paths
-    for path_points in paths_points:
-        if path_points is not None:
-            for i, point in enumerate(path_points):
-                if i > 0:
-                    x1, y1 = point
-                    x2, y2 = path_points[i - 1]
-                    line = plt.Line2D([x1, x2], [y1, y2], linewidth=3, color=((0.8, 0.8, 0.8) if point not in bridge_points else (0.8, 0.6, 0.4)))
-                    axes[axes_index].add_line(line)
-    hf.paste_debugging("displayed paths")  #* Debugging (Time Paste)
-
-    # Display buildings
-    for building in buildings:
-        x, y, w, h = building["rect"]
-        rect = plt.Rectangle((x, y), w, h, linewidth=1, edgecolor="white", facecolor="none")
-        axes[axes_index].add_patch(rect)
-        axes[axes_index].text(x + w/2, y - 5, building["nametag"], color="white", fontsize=6, ha="center")
-    hf.paste_debugging("displayed buildings")  #* Debugging (Time Paste)
-
-    plt.tight_layout()
-    plt.show()
-
+#* Mocking Dashboard for Performance Measuring
 if __name__ == "__main__":
     image_input_path = "./mocking_examples/main2.png"
 
@@ -191,4 +151,4 @@ if __name__ == "__main__":
     water_mask = get_water_mask(image_input_path)
     hf.paste_debugging("water mask generated")  #* Debugging (Time Paste)
 
-    overlay_mapping(image_input_path, tree_mask, water_mask)
+    result_tuple = mask_deployment(image_input_path, tree_mask, water_mask)

@@ -3,7 +3,7 @@ import os
 import numpy as np
 import tkinter as tk
 import matplotlib.pyplot as plt
-from area_mapping import overlay_mapping, get_tree_mask, get_water_mask
+from area_mapping import mask_deployment, get_tree_mask, get_water_mask
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 from tkinter import ttk
@@ -94,8 +94,8 @@ def load_image(event=None):
         img = cv2.imread(img_path)
         
         # Calculate masks for the new image
-        coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points = overlay_mapping(
-            img_path, get_tree_mask(img_path), get_water_mask(img_path), dashboard=True
+        coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points = mask_deployment(
+            get_tree_mask(img_path), get_water_mask(img_path)
         )
         
         # Update plot with new masks
@@ -175,8 +175,8 @@ img_path = os.path.join("./mocking_examples", image_files[0])  # Select first im
 img = cv2.imread(img_path)
 
 # Calculate masks for the first image (predefine globals)
-coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points = overlay_mapping(
-    img_path, get_tree_mask(img_path), get_water_mask(img_path), dashboard=True
+coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points = mask_deployment(
+    get_tree_mask(img_path), get_water_mask(img_path)
 )
 
 # Create matplotlib plot
