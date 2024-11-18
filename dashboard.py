@@ -3,6 +3,7 @@ import os
 import numpy as np
 import tkinter as tk
 import matplotlib.pyplot as plt
+import helper_functions as hf
 from area_mapping import mask_deployment, get_tree_mask, get_water_mask
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
@@ -11,33 +12,23 @@ from tkinter import ttk
 # Function to update the plot based on the image
 def update_plot(loading=False):
     overlay = img.copy()
-    alpha: float = 0.35
+    alpha: float = alpha_var.get()
 
     # Apply masks
     if coast_var.get():
-        coast_color_overlay = np.zeros_like(img)
-        coast_color_overlay[coast_mask > 0] = (174, 235, 52)[::-1]
-        overlay = cv2.addWeighted(overlay, 1, coast_color_overlay, alpha, 0)
+        overlay = hf.overlay_from_masks(overlay, (coast_mask, (174, 235, 52), alpha))
 
     if inland_var.get():
-        inland_color_overlay = np.zeros_like(img)
-        inland_color_overlay[inland_mask > 0] = (245, 130, 37)[::-1]
-        overlay = cv2.addWeighted(overlay, 1, inland_color_overlay, alpha, 0)
+        overlay = hf.overlay_from_masks(overlay, (inland_mask, (245, 130, 37), alpha))
 
     if forest_edge_var.get():
-        forest_edge_color_overlay = np.zeros_like(img)
-        forest_edge_color_overlay[forest_edge_mask > 0] = (81, 153, 14)[::-1]
-        overlay = cv2.addWeighted(overlay, 1, forest_edge_color_overlay, alpha, 0)
+        overlay = hf.overlay_from_masks(overlay, (forest_edge_mask, (81, 153, 14), alpha))
 
     if tree_var.get():
-        tree_color_overlay = np.zeros_like(img)
-        tree_color_overlay[tree_mask > 0] = (66, 191, 50)[::-1]
-        overlay = cv2.addWeighted(overlay, 1, tree_color_overlay, alpha, 0)
+        overlay = hf.overlay_from_masks(overlay, (tree_mask, (66, 191, 50), alpha))
 
     if water_var.get():
-        water_color_overlay = np.zeros_like(img)
-        water_color_overlay[water_mask > 0] = (58, 77, 222)[::-1]
-        overlay = cv2.addWeighted(overlay, 1, water_color_overlay, alpha, 0)
+        overlay = hf.overlay_from_masks(overlay, (water_mask, (58, 77, 222), alpha))
 
     # Update matplotlib plot
     ax.clear()
@@ -157,8 +148,12 @@ style.configure(
 # Dropdown menu for selecting an image
 image_files = [f for f in os.listdir("./mocking_examples") if f.endswith(".png")]
 image_selection = ttk.Combobox(sidebar, values=image_files, style="TCombobox")
-image_selection.pack(padx=10, pady=10)
+image_selection.pack(padx=10, pady=(10, 5))
 image_selection.bind("<<ComboboxSelected>>", load_image)
+
+# Splitter
+canvas = tk.Canvas(sidebar, width=150, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas.pack(padx=10, pady=10)
 
 # Labels and checkbuttons for masks
 ttk.Label(sidebar, text="Toggle Layers", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
@@ -169,6 +164,21 @@ ttk.Checkbutton(sidebar, text="Tree Mask", variable=tree_var, style="Dark.TCheck
 ttk.Checkbutton(sidebar, text="Water Mask", variable=water_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
 ttk.Checkbutton(sidebar, text="Buildings", variable=building_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
 ttk.Checkbutton(sidebar, text="Paths", variable=path_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
+
+# Splitter
+canvas = tk.Canvas(sidebar, width=150, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas.pack(padx=10, pady=10)
+
+# Title Label
+ttk.Label(sidebar, text="Adjust Alpha", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
+
+# Transparency Adjustment Slider
+alpha_var = tk.DoubleVar(value=0.35)  # Default alpha value
+alpha_slider = ttk.Scale(
+    sidebar, from_=0.0, to=1.0, orient="horizontal", variable=alpha_var,
+    style="Horizontal.TScale", command=lambda val: update_plot()
+)
+alpha_slider.pack(anchor="w", padx=10, pady=5)
 
 # Load and display the default image
 img_path = os.path.join("./mocking_examples", image_files[0])  # Select first image
