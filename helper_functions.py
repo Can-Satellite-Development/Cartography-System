@@ -111,19 +111,19 @@ def place_buildings(blueprints: list, masks: dict[str, np.ndarray]) -> tuple[lis
     
     return placed_buildings, building_mask
 
-def overlay_from_masks(img, *masks: np.ndarray) -> None:
-    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+def overlay_from_masks(img, *masks: np.ndarray) -> np.ndarray:
 
-    # Add each mask with its color to the Overlay
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.float32)
     overlay = img_rgb.copy()
-    for mask, color, alpha in masks:
-        mask_overlay = img_rgb.copy()
-        mask_overlay[mask > 0] = color
-        overlay = cv2.addWeighted(overlay, 1 - alpha, mask_overlay, alpha, 0)
-        # Blend the overlay with the original image
-    overlay = cv2.addWeighted(img_rgb, 0, overlay, 1, 0)
 
-    return overlay
+    for mask, color, alpha in masks:
+        mask_color = np.zeros_like(img_rgb, dtype=np.float32)
+        mask_color[mask > 0] = color
+
+        alpha_mask = (mask > 0).astype(np.float32) * alpha
+        overlay = overlay * (1 - alpha_mask[..., None]) + mask_color * alpha_mask[..., None]
+
+    return np.clip(overlay, 0, 255).astype(np.uint8)
 
 def filter_artifacts(mask: np.ndarray, min_area_threshold: int = 2500) -> np.ndarray:
     contours = get_contours(mask)
