@@ -14,21 +14,24 @@ def update_plot(loading=False):
     overlay = img.copy()
     alpha: float = alpha_var.get()
 
-    # Apply masks
+    active_masks = []
+
     if coast_var.get():
-        overlay = hf.overlay_from_masks(overlay, (coast_mask, (174, 235, 52), alpha))
+        active_masks.append((coast_mask, (174, 235, 52), alpha))
 
     if inland_var.get():
-        overlay = hf.overlay_from_masks(overlay, (inland_mask, (245, 130, 37), alpha))
+        active_masks.append((inland_mask, (245, 130, 37), alpha))
 
     if forest_edge_var.get():
-        overlay = hf.overlay_from_masks(overlay, (forest_edge_mask, (81, 153, 14), alpha))
+        active_masks.append((forest_edge_mask, (81, 153, 14), alpha))
 
     if tree_var.get():
-        overlay = hf.overlay_from_masks(overlay, (tree_mask, (66, 191, 50), alpha))
+        active_masks.append((tree_mask, (66, 191, 50), alpha))
 
     if water_var.get():
-        overlay = hf.overlay_from_masks(overlay, (water_mask, (58, 77, 222), alpha))
+        active_masks.append((water_mask, (58, 77, 222), alpha))
+
+    overlay = hf.overlay_from_masks(overlay, *active_masks)
 
     # Update matplotlib plot
     ax.clear()
@@ -36,7 +39,7 @@ def update_plot(loading=False):
     # Show "Loading..." text when loading flag is set
     ax.text(0.5, 0.5, 'Loading...' if loading else "", color='black', fontsize=18, ha='center', va='center', transform=ax.transAxes)
 
-    ax.imshow(cv2.cvtColor(overlay, cv2.COLOR_BGR2RGB))
+    ax.imshow(overlay)
 
     # Display paths if path layer is enabled
     if path_var.get():
