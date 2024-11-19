@@ -40,8 +40,6 @@ The framework supports:
 - Strategic placement of buildings based on terrain analysis.
 - Generation of paths and bridges that navigate terrain obstacles.
 
----
-
 ## How It Works
 
 ### Masks and Their Purpose
