@@ -151,4 +151,4 @@ if __name__ == "__main__":
     water_mask = get_water_mask(image_input_path)
     hf.paste_debugging("water mask generated")  #* Debugging (Time Paste)
 
-    result_tuple = mask_deployment(image_input_path, tree_mask, water_mask)
+    result_tuple = mask_deployment(tree_mask, water_mask)
