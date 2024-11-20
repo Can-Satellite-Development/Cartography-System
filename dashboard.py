@@ -84,12 +84,16 @@ def load_image(event=None):
         global img, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points
         
         # Load the selected image
-        img_path = os.path.join("./mocking_examples", image_selection.get())
-        img = cv2.imread(img_path)
-        
+        if not image_selection.get():
+            img_path = os.path.join("./mocking_examples", image_files[0])
+            img = cv2.imread(img_path)
+        else:
+            img_path = os.path.join("./mocking_examples", image_selection.get())
+            img = cv2.imread(img_path)
+
         # Calculate masks for the new image
         coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points = mask_deployment(
-            get_tree_mask(img_path), get_water_mask(img_path)
+            get_tree_mask(img_path), get_water_mask(img_path), (cost_1.get(), cost_2.get(), cost_3.get(), cost_4.get())
         )
         
         # Update plot with new masks
@@ -148,6 +152,14 @@ style.configure(
     font=("Arial", 12, "bold")
 )
 
+# Label Style
+style.configure(
+    "Dark_.TLabel",
+    background="#1f1f1f",
+    foreground=text_color,
+    font=("Arial", 10)
+)
+
 # Dropdown menu for selecting an image
 image_files = [f for f in os.listdir("./mocking_examples") if f.endswith(".png")]
 image_selection = ttk.Combobox(sidebar, values=image_files, style="TCombobox")
@@ -182,6 +194,81 @@ alpha_slider = ttk.Scale(
     style="Horizontal.TScale", command=lambda val: update_plot()
 )
 alpha_slider.pack(anchor="w", padx=10, pady=5)
+
+# Splitter
+canvas = tk.Canvas(sidebar, width=150, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas.pack(padx=10, pady=10)
+
+# Title Label
+ttk.Label(sidebar, text="Path Mask Priority", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
+
+# Cost Slider
+ttk.Label(sidebar, text="Zero Mask:", style="Dark_.TLabel").pack(anchor="w", padx=10, pady=2.5)
+cost_1 = tk.DoubleVar(value=1)
+cost_1_slider = ttk.Scale(
+    sidebar, from_=1.0, to=10000.0, orient="horizontal", variable=cost_1,
+    style="Horizontal.TScale"
+)
+cost_1_slider.pack(anchor="w", padx=10, pady=5)
+
+# Cost Slider
+ttk.Label(sidebar, text="Tree Mask:", style="Dark_.TLabel").pack(anchor="w", padx=10, pady=2.5)
+cost_2 = tk.DoubleVar(value=100)
+cost_2_slider = ttk.Scale(
+    sidebar, from_=1.0, to=10000.0, orient="horizontal", variable=cost_2,
+    style="Horizontal.TScale"
+)
+cost_2_slider.pack(anchor="w", padx=10, pady=5)
+
+# Cost Slider
+ttk.Label(sidebar, text="Water Mask:", style="Dark_.TLabel").pack(anchor="w", padx=10, pady=2.5)
+cost_3 = tk.DoubleVar(value=1000)
+cost_3_slider = ttk.Scale(
+    sidebar, from_=1.0, to=10000.0, orient="horizontal", variable=cost_3,
+    style="Horizontal.TScale"
+)
+cost_3_slider.pack(anchor="w", padx=10, pady=5)
+
+# Cost Slider
+ttk.Label(sidebar, text="Buildings Mask:", style="Dark_.TLabel").pack(anchor="w", padx=10, pady=2.5)
+cost_4 = tk.DoubleVar(value=10000)
+cost_4_slider = ttk.Scale(
+    sidebar, from_=1.0, to=10000.0, orient="horizontal", variable=cost_4,
+    style="Horizontal.TScale"
+)
+cost_4_slider.pack(anchor="w", padx=10, pady=5)
+
+# Splitter
+canvas = tk.Canvas(sidebar, width=150, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas.pack(padx=10, pady=10)
+
+style.configure(
+    "Dark.TButton",
+    background=dark_bg,
+    foreground=text_color,
+    font=("Arial", 10),
+    borderwidth=1,
+    focusthickness=0
+)
+
+style.map(
+    "Dark.TButton",
+    background=[("active", highlight_color), ("!active", dark_bg)],
+    foreground=[("active", dark_bg), ("!active", text_color)]
+)
+
+# Update Button
+button = tk.Button(
+    sidebar, text="Update", 
+    background=dark_bg, foreground=text_color,
+    font=("Arial", 12, "bold"),
+    relief="flat",
+    activebackground="#333333",
+    activeforeground=text_color,
+    highlightbackground="#444444",
+    command=load_image
+)
+button.pack(anchor="w", padx=10, pady=5)
 
 # Load and display the default image
 img_path = os.path.join("./mocking_examples", image_files[0])  # Select first image

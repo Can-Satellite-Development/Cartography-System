@@ -97,7 +97,7 @@ def get_forest_edge_mask(tree_mask: np.ndarray, zero_mask: np.ndarray, contour_m
     
     return forest_edge_mask
 
-def mask_deployment(tree_mask: np.ndarray, water_mask: np.ndarray) -> tuple[np.ndarray]:
+def mask_deployment(tree_mask: np.ndarray, water_mask: np.ndarray, costs: tuple[int] = (1, 100, 1000, 100000)) -> tuple[np.ndarray]:
     zero_mask = get_zero_mask(tree_mask, water_mask)
     hf.paste_debugging("zero mask generated")  #* Debugging (Time Paste)
 
@@ -132,10 +132,10 @@ def mask_deployment(tree_mask: np.ndarray, water_mask: np.ndarray) -> tuple[np.n
     
     # Generate List of paths
     paths_points, bridge_points = hf.generate_path_points(buildings, masks_and_cost_multipliers={
-        "zero": (zero_mask, 1), 
-        "trees": (tree_mask, 100), 
-        "water": (water_mask, 1000), 
-        "buildings": (building_mask, 100000),  # Buildings must be avoided at all costs
+        "zero": (zero_mask, costs[0]), 
+        "trees": (tree_mask, costs[1]), 
+        "water": (water_mask, costs[2]), 
+        "buildings": (building_mask, costs[3]),  # Buildings must be avoided at all costs
     }, resolution_factor=0.35, max_distance=None)  # Generate paths using masks scaled down to 35%, with a maximum distance between points of e.g. 100 pixels (deactivated by None)
     hf.paste_debugging("paths points generated")  #* Debugging (Time Paste)
 
