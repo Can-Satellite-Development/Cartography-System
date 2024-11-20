@@ -112,7 +112,6 @@ def place_buildings(blueprints: list, masks: dict[str, np.ndarray]) -> tuple[lis
     return placed_buildings, building_mask
 
 def overlay_from_masks(img, *masks: np.ndarray) -> np.ndarray:
-
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.float32)
     overlay = img_rgb.copy()
 
