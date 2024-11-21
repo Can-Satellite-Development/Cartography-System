@@ -80,12 +80,12 @@ def update_plot(loading=False):
                 )
             else:
                 try:
-                    icon = mpimg.imread(f"./icons/{building['nametag'].lower()}.png")[::-1]
+                    icon = mpimg.imread(f"./icons/{"_".join(building['nametag'].lower().split())}.png")[::-1]
                 except FileNotFoundError:
                     icon = mpimg.imread(f"./icons/wip.png")[::-1]
                 ax.imshow(
                     icon,
-                    extent=[x + w / 2 - 10, x + w / 2 + 10, y + h / 2 - 10, y + h / 2 + 10],  # Position and size of the icon
+                    extent=[x + w / 2 - 15, x + w / 2 + 15, y + h / 2 - 15, y + h / 2 + 15],  # Position and size of the icon
                     aspect='equal',  # Scale image to fit the extent
                     zorder=2
                 )
