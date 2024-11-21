@@ -123,6 +123,7 @@ def load_image(event=None):
 # Create Tkinter main window
 root = tk.Tk()
 root.title("Mask Dashboard")
+root.attributes('-fullscreen', True)
 
 style = ttk.Style()
 
