@@ -56,7 +56,8 @@ def update_plot(loading=False):
                         line = plt.Line2D(
                             [x1, x2], [y1, y2],
                             linewidth=3,
-                            color=(0.7, 0.7, 0.7) if point not in bridge_points else (0.8, 0.6, 0.4)
+                            color=(0.7, 0.7, 0.7) if point not in bridge_points else (0.8, 0.6, 0.4), 
+                            zorder=1
                         )
                         ax.add_line(line)  # Add the path line
 
@@ -67,23 +68,26 @@ def update_plot(loading=False):
             if not building_icons.get():
                 rect = plt.Rectangle(
                     (x, y), w, h,
-                    linewidth=1, edgecolor="white", facecolor="none"
+                    linewidth=1, edgecolor="white", facecolor="none", 
+                    zorder=2
                 )
                 ax.add_patch(rect)  # Draw the building rectangle
                 ax.text(
                     x + w / 2, y - 5,
                     building["nametag"],
-                    color="white", fontsize=6, ha="center"
+                    color="white", fontsize=6, ha="center", 
+                    zorder=3
                 )
             else:
                 try:
-                    icon = mpimg.imread(f"./icons/{building['nametag']}.png")[::-1]
+                    icon = mpimg.imread(f"./icons/{building['nametag'].lower()}.png")[::-1]
                 except FileNotFoundError:
                     icon = mpimg.imread(f"./icons/wip.png")[::-1]
                 ax.imshow(
                     icon,
                     extent=[x + w / 2 - 10, x + w / 2 + 10, y + h / 2 - 10, y + h / 2 + 10],  # Position and size of the icon
-                    aspect='equal'  # Scale image to fit the extent
+                    aspect='equal',  # Scale image to fit the extent
+                    zorder=2
                 )
     
     ax.set_xlim(x_limits)
@@ -223,12 +227,12 @@ style.configure(
 # Dropdown menu for selecting an image
 image_files = [f for f in os.listdir("./mocking_examples") if f.endswith(".png")]
 image_selection = ttk.Combobox(sidebar, values=image_files, style="TCombobox")
-image_selection.pack(padx=10, pady=(10, 5))
+image_selection.pack(padx=10, pady=(10, 5), anchor="w")
 image_selection.bind("<<ComboboxSelected>>", load_image)
 image_selection.current(0)
 
 # Splitter
-canvas = tk.Canvas(sidebar, width=150, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas = tk.Canvas(sidebar, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
 canvas.pack(padx=10, pady=10)
 
 # Labels and checkbuttons for masks
@@ -242,7 +246,7 @@ ttk.Checkbutton(sidebar, text="Buildings", variable=building_var, style="Dark.TC
 ttk.Checkbutton(sidebar, text="Paths", variable=path_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
 
 # Splitter
-canvas = tk.Canvas(sidebar, width=150, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas = tk.Canvas(sidebar, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
 canvas.pack(padx=10, pady=10)
 
 # Title Label
@@ -257,7 +261,7 @@ alpha_slider = ttk.Scale(
 alpha_slider.pack(anchor="w", padx=10, pady=5)
 
 # Splitter
-canvas = tk.Canvas(sidebar, width=150, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas = tk.Canvas(sidebar, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
 canvas.pack(padx=10, pady=10)
 
 # Title Label
@@ -269,7 +273,7 @@ building_icons = tk.BooleanVar(value=True)
 ttk.Checkbutton(sidebar, text="Building Icons", variable=building_icons, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
 
 # Splitter
-canvas = tk.Canvas(sidebar, width=150, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas = tk.Canvas(sidebar, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
 canvas.pack(padx=10, pady=10)
 
 # Title Label
@@ -312,7 +316,7 @@ cost_4_slider = ttk.Scale(
 cost_4_slider.pack(anchor="w", padx=10, pady=5)
 
 # Splitter
-canvas = tk.Canvas(sidebar, width=150, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas = tk.Canvas(sidebar, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
 canvas.pack(padx=10, pady=10)
 
 style.configure(
