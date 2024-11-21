@@ -104,11 +104,59 @@ def load_image(event=None):
 
 # Create Tkinter main window
 root = tk.Tk()
-root.title("Cartography Dashboard")
+root.title("Mask Dashboard")
 
-# Sidebar
-sidebar = tk.Frame(root, width=250, bg="#1f1f1f")
-sidebar.pack(side=tk.LEFT, fill=tk.Y)
+style = ttk.Style()
+
+darker_bg = "#1f1f1f"
+dark_bg = "#2e2e2e"
+light_bg = "#3a3a3a"
+text_color = "#828282"
+highlight_color = "#5a5a5a"
+
+# Create a Canvas widget to hold the sidebar and make it scrollable
+sidebar_canvas = tk.Canvas(root, width=250, bg=darker_bg, border=0, highlightthickness=0)
+sidebar_canvas.pack(side=tk.LEFT, fill=tk.Y)
+
+# Configure the scrollbar style
+style.configure(
+    "Dark.Vertical.TScrollbar",
+    gripcount=0,
+    background=dark_bg,  # Scrollbar background
+    troughcolor=dark_bg,  # Background of the trough
+    bordercolor=dark_bg,  # Border color
+    arrowcolor=dark_bg,  # Color of the arrows
+)
+
+# Add a scrollbar to the Canvas
+scrollbar = ttk.Scrollbar(root, orient="vertical", command=sidebar_canvas.yview, style="Dark.Vertical.TScrollbar")
+scrollbar.pack(side=tk.LEFT, fill="y")
+
+# Create a frame inside the Canvas to hold sidebar content
+sidebar = tk.Frame(sidebar_canvas, width=250, bg=darker_bg)
+sidebar.bind(
+    "<Configure>",
+    lambda e: sidebar_canvas.configure(scrollregion=sidebar_canvas.bbox("all"))
+)
+
+# Place the frame inside the Canvas
+sidebar_canvas.create_window((0, 0), window=sidebar, anchor="nw")
+sidebar_canvas.configure(yscrollcommand=scrollbar.set)
+
+# Function to enable scrolling with the mouse wheel
+def on_mouse_wheel(event):
+    # Adjust scroll amount for different platforms
+    if event.num == 4 or event.delta > 0:
+        sidebar_canvas.yview_scroll(-1, "units")
+    elif event.num == 5 or event.delta < 0:
+        sidebar_canvas.yview_scroll(1, "units")
+
+# Bind mouse wheel event for Windows and MacOS
+sidebar_canvas.bind_all("<MouseWheel>", on_mouse_wheel)
+
+# Bind mouse wheel event for Linux (uses Button-4 and Button-5)
+sidebar_canvas.bind_all("<Button-4>", on_mouse_wheel)
+sidebar_canvas.bind_all("<Button-5>", on_mouse_wheel)
 
 # Variables for masks
 coast_var = tk.BooleanVar(value=True)
@@ -119,17 +167,10 @@ water_var = tk.BooleanVar(value=True)
 building_var = tk.BooleanVar(value=True)
 path_var = tk.BooleanVar(value=True)
 
-style = ttk.Style()
-
-dark_bg = "#2e2e2e"
-light_bg = "#3a3a3a"
-text_color = "#828282"
-highlight_color = "#5a5a5a"
-
 # Checkbox Style
 style.configure(
     "Dark.TCheckbutton",
-    background=dark_bg,
+    background=darker_bg,
     foreground=text_color,
     font=("Arial", 10),
     indicatorcolor=light_bg,
@@ -140,14 +181,14 @@ style.configure(
 # Checkbox Hover Style
 style.map(
     "Dark.TCheckbutton",
-    background=[("active", dark_bg)],
-    indicatorcolor=[("active", light_bg), ("!active", dark_bg)],
+    background=[("active", darker_bg)],
+    indicatorcolor=[("active", light_bg), ("!active", darker_bg)],
 )
 
 # Label Style
 style.configure(
     "Dark.TLabel",
-    background=dark_bg,
+    background=darker_bg,
     foreground=text_color,
     font=("Arial", 12, "bold")
 )
@@ -155,7 +196,7 @@ style.configure(
 # Label Style
 style.configure(
     "Dark_.TLabel",
-    background="#1f1f1f",
+    background=darker_bg,
     foreground=text_color,
     font=("Arial", 10)
 )
