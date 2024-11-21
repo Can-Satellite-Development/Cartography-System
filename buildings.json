@@ -49,10 +49,17 @@
         "amount": 1
     }, 
     {
-        "name": "mine", 
+        "name": "Mine", 
         "size": [25, 25], 
         "priority": 3, 
         "location": "inland", 
+        "amount": 1
+    }, 
+    {
+        "name": "Factory", 
+        "size": [30, 40], 
+        "priority": 2, 
+        "location": "zero", 
         "amount": 1
     }
 ]
