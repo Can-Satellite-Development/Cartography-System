@@ -7,6 +7,7 @@ import helper_functions as hf
 from area_mapping import mask_deployment, get_tree_mask, get_water_mask
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+import matplotlib.image as mpimg
 from tkinter import ttk
 
 # Function to update the plot based on the image
@@ -41,6 +42,9 @@ def update_plot(loading=False):
 
     ax.imshow(overlay)
 
+    x_limits = ax.get_xlim()
+    y_limits = ax.get_ylim()
+
     # Display paths if path layer is enabled
     if path_var.get():
         for path_points in paths_points:
@@ -60,16 +64,30 @@ def update_plot(loading=False):
     if building_var.get():
         for building in buildings:
             x, y, w, h = building["rect"]
-            rect = plt.Rectangle(
-                (x, y), w, h,
-                linewidth=1, edgecolor="white", facecolor="none"
-            )
-            ax.add_patch(rect)  # Draw the building rectangle
-            ax.text(
-                x + w / 2, y - 5,
-                building["nametag"],
-                color="white", fontsize=6, ha="center"
-            )
+            if not building_icons.get():
+                rect = plt.Rectangle(
+                    (x, y), w, h,
+                    linewidth=1, edgecolor="white", facecolor="none"
+                )
+                ax.add_patch(rect)  # Draw the building rectangle
+                ax.text(
+                    x + w / 2, y - 5,
+                    building["nametag"],
+                    color="white", fontsize=6, ha="center"
+                )
+            else:
+                try:
+                    icon = mpimg.imread(f"./icons/{building['nametag']}.png")[::-1]
+                except FileNotFoundError:
+                    icon = mpimg.imread(f"./icons/wip.png")[::-1]
+                ax.imshow(
+                    icon,
+                    extent=[x + w / 2 - 10, x + w / 2 + 10, y + h / 2 - 10, y + h / 2 + 10],  # Position and size of the icon
+                    aspect='equal'  # Scale image to fit the extent
+                )
+    
+    ax.set_xlim(x_limits)
+    ax.set_ylim(y_limits)
 
     canvas.draw()
 
@@ -236,6 +254,18 @@ alpha_slider = ttk.Scale(
     style="Horizontal.TScale", command=lambda val: update_plot()
 )
 alpha_slider.pack(anchor="w", padx=10, pady=5)
+
+# Splitter
+canvas = tk.Canvas(sidebar, width=150, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas.pack(padx=10, pady=10)
+
+# Title Label
+ttk.Label(sidebar, text="Building Display", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
+
+building_icons = tk.BooleanVar(value=True)
+
+# Checkbutton for toggling building icons
+ttk.Checkbutton(sidebar, text="Building Icons", variable=building_icons, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
 
 # Splitter
 canvas = tk.Canvas(sidebar, width=150, height=1, bg="gray", bd=0, highlightthickness=0)
