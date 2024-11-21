@@ -7,6 +7,7 @@ import helper_functions as hf
 from area_mapping import mask_deployment, get_tree_mask, get_water_mask
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+import matplotlib.image as mpimg
 from tkinter import ttk
 
 # Function to update the plot based on the image
@@ -41,6 +42,9 @@ def update_plot(loading=False):
 
     ax.imshow(overlay)
 
+    x_limits = ax.get_xlim()
+    y_limits = ax.get_ylim()
+
     # Display paths if path layer is enabled
     if path_var.get():
         for path_points in paths_points:
@@ -52,7 +56,8 @@ def update_plot(loading=False):
                         line = plt.Line2D(
                             [x1, x2], [y1, y2],
                             linewidth=3,
-                            color=(0.7, 0.7, 0.7) if point not in bridge_points else (0.8, 0.6, 0.4)
+                            color=(0.7, 0.7, 0.7) if point not in bridge_points else (0.8, 0.6, 0.4), 
+                            zorder=1
                         )
                         ax.add_line(line)  # Add the path line
 
@@ -60,16 +65,33 @@ def update_plot(loading=False):
     if building_var.get():
         for building in buildings:
             x, y, w, h = building["rect"]
-            rect = plt.Rectangle(
-                (x, y), w, h,
-                linewidth=1, edgecolor="white", facecolor="none"
-            )
-            ax.add_patch(rect)  # Draw the building rectangle
-            ax.text(
-                x + w / 2, y - 5,
-                building["nametag"],
-                color="white", fontsize=6, ha="center"
-            )
+            if not building_icons.get():
+                rect = plt.Rectangle(
+                    (x, y), w, h,
+                    linewidth=1, edgecolor="white", facecolor="none", 
+                    zorder=2
+                )
+                ax.add_patch(rect)  # Draw the building rectangle
+                ax.text(
+                    x + w / 2, y - 5,
+                    building["nametag"],
+                    color="white", fontsize=6, ha="center", 
+                    zorder=3
+                )
+            else:
+                try:
+                    icon = mpimg.imread(f"./icons/{"_".join(building['nametag'].lower().split())}.png")[::-1]
+                except FileNotFoundError:
+                    icon = mpimg.imread(f"./icons/wip.png")[::-1]
+                ax.imshow(
+                    icon,
+                    extent=[x + w / 2 - 15, x + w / 2 + 15, y + h / 2 - 15, y + h / 2 + 15],  # Position and size of the icon
+                    aspect='equal',  # Scale image to fit the extent
+                    zorder=2
+                )
+    
+    ax.set_xlim(x_limits)
+    ax.set_ylim(y_limits)
 
     canvas.draw()
 
@@ -104,11 +126,60 @@ def load_image(event=None):
 
 # Create Tkinter main window
 root = tk.Tk()
-root.title("Cartography Dashboard")
+root.title("Mask Dashboard")
+root.attributes('-fullscreen', True)
 
-# Sidebar
-sidebar = tk.Frame(root, width=250, bg="#1f1f1f")
-sidebar.pack(side=tk.LEFT, fill=tk.Y)
+style = ttk.Style()
+
+darker_bg = "#1f1f1f"
+dark_bg = "#2e2e2e"
+light_bg = "#3a3a3a"
+text_color = "#828282"
+highlight_color = "#5a5a5a"
+
+# Create a Canvas widget to hold the sidebar and make it scrollable
+sidebar_canvas = tk.Canvas(root, width=250, bg=darker_bg, border=0, highlightthickness=0)
+sidebar_canvas.pack(side=tk.LEFT, fill=tk.Y)
+
+# Configure the scrollbar style
+style.configure(
+    "Dark.Vertical.TScrollbar",
+    gripcount=0,
+    background=dark_bg,  # Scrollbar background
+    troughcolor=dark_bg,  # Background of the trough
+    bordercolor=dark_bg,  # Border color
+    arrowcolor=dark_bg,  # Color of the arrows
+)
+
+# Add a scrollbar to the Canvas
+scrollbar = ttk.Scrollbar(root, orient="vertical", command=sidebar_canvas.yview, style="Dark.Vertical.TScrollbar")
+scrollbar.pack(side=tk.LEFT, fill="y")
+
+# Create a frame inside the Canvas to hold sidebar content
+sidebar = tk.Frame(sidebar_canvas, width=250, bg=darker_bg)
+sidebar.bind(
+    "<Configure>",
+    lambda e: sidebar_canvas.configure(scrollregion=sidebar_canvas.bbox("all"))
+)
+
+# Place the frame inside the Canvas
+sidebar_canvas.create_window((0, 0), window=sidebar, anchor="nw")
+sidebar_canvas.configure(yscrollcommand=scrollbar.set)
+
+# Function to enable scrolling with the mouse wheel
+def on_mouse_wheel(event):
+    # Adjust scroll amount for different platforms
+    if event.num == 4 or event.delta > 0:
+        sidebar_canvas.yview_scroll(-1, "units")
+    elif event.num == 5 or event.delta < 0:
+        sidebar_canvas.yview_scroll(1, "units")
+
+# Bind mouse wheel event for Windows and MacOS
+sidebar_canvas.bind_all("<MouseWheel>", on_mouse_wheel)
+
+# Bind mouse wheel event for Linux (uses Button-4 and Button-5)
+sidebar_canvas.bind_all("<Button-4>", on_mouse_wheel)
+sidebar_canvas.bind_all("<Button-5>", on_mouse_wheel)
 
 # Variables for masks
 coast_var = tk.BooleanVar(value=True)
@@ -119,17 +190,10 @@ water_var = tk.BooleanVar(value=True)
 building_var = tk.BooleanVar(value=True)
 path_var = tk.BooleanVar(value=True)
 
-style = ttk.Style()
-
-dark_bg = "#2e2e2e"
-light_bg = "#3a3a3a"
-text_color = "#828282"
-highlight_color = "#5a5a5a"
-
 # Checkbox Style
 style.configure(
     "Dark.TCheckbutton",
-    background=dark_bg,
+    background=darker_bg,
     foreground=text_color,
     font=("Arial", 10),
     indicatorcolor=light_bg,
@@ -140,14 +204,14 @@ style.configure(
 # Checkbox Hover Style
 style.map(
     "Dark.TCheckbutton",
-    background=[("active", dark_bg)],
-    indicatorcolor=[("active", light_bg), ("!active", dark_bg)],
+    background=[("active", darker_bg)],
+    indicatorcolor=[("active", light_bg), ("!active", darker_bg)],
 )
 
 # Label Style
 style.configure(
     "Dark.TLabel",
-    background=dark_bg,
+    background=darker_bg,
     foreground=text_color,
     font=("Arial", 12, "bold")
 )
@@ -155,7 +219,7 @@ style.configure(
 # Label Style
 style.configure(
     "Dark_.TLabel",
-    background="#1f1f1f",
+    background=darker_bg,
     foreground=text_color,
     font=("Arial", 10)
 )
@@ -163,11 +227,12 @@ style.configure(
 # Dropdown menu for selecting an image
 image_files = [f for f in os.listdir("./mocking_examples") if f.endswith(".png")]
 image_selection = ttk.Combobox(sidebar, values=image_files, style="TCombobox")
-image_selection.pack(padx=10, pady=(10, 5))
+image_selection.pack(padx=10, pady=(10, 5), anchor="w")
 image_selection.bind("<<ComboboxSelected>>", load_image)
+image_selection.current(0)
 
 # Splitter
-canvas = tk.Canvas(sidebar, width=150, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas = tk.Canvas(sidebar, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
 canvas.pack(padx=10, pady=10)
 
 # Labels and checkbuttons for masks
@@ -181,7 +246,7 @@ ttk.Checkbutton(sidebar, text="Buildings", variable=building_var, style="Dark.TC
 ttk.Checkbutton(sidebar, text="Paths", variable=path_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
 
 # Splitter
-canvas = tk.Canvas(sidebar, width=150, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas = tk.Canvas(sidebar, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
 canvas.pack(padx=10, pady=10)
 
 # Title Label
@@ -196,7 +261,19 @@ alpha_slider = ttk.Scale(
 alpha_slider.pack(anchor="w", padx=10, pady=5)
 
 # Splitter
-canvas = tk.Canvas(sidebar, width=150, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas = tk.Canvas(sidebar, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas.pack(padx=10, pady=10)
+
+# Title Label
+ttk.Label(sidebar, text="Building Display", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
+
+building_icons = tk.BooleanVar(value=True)
+
+# Checkbutton for toggling building icons
+ttk.Checkbutton(sidebar, text="Building Icons", variable=building_icons, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
+
+# Splitter
+canvas = tk.Canvas(sidebar, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
 canvas.pack(padx=10, pady=10)
 
 # Title Label
@@ -239,7 +316,7 @@ cost_4_slider = ttk.Scale(
 cost_4_slider.pack(anchor="w", padx=10, pady=5)
 
 # Splitter
-canvas = tk.Canvas(sidebar, width=150, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas = tk.Canvas(sidebar, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
 canvas.pack(padx=10, pady=10)
 
 style.configure(
@@ -271,7 +348,7 @@ button = tk.Button(
 button.pack(anchor="w", padx=10, pady=5)
 
 # Load and display the default image
-img_path = os.path.join("./mocking_examples", image_files[0])  # Select first image
+img_path = os.path.join("./mocking_examples", image_selection.get())  # Select first image
 img = cv2.imread(img_path)
 
 # Calculate masks for the first image (predefine globals)
