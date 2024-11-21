@@ -165,6 +165,7 @@ image_files = [f for f in os.listdir("./mocking_examples") if f.endswith(".png")
 image_selection = ttk.Combobox(sidebar, values=image_files, style="TCombobox")
 image_selection.pack(padx=10, pady=(10, 5))
 image_selection.bind("<<ComboboxSelected>>", load_image)
+image_selection.current(0)
 
 # Splitter
 canvas = tk.Canvas(sidebar, width=150, height=1, bg="gray", bd=0, highlightthickness=0)
@@ -271,7 +272,7 @@ button = tk.Button(
 button.pack(anchor="w", padx=10, pady=5)
 
 # Load and display the default image
-img_path = os.path.join("./mocking_examples", image_files[0])  # Select first image
+img_path = os.path.join("./mocking_examples", image_selection.get())  # Select first image
 img = cv2.imread(img_path)
 
 # Calculate masks for the first image (predefine globals)
