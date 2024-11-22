@@ -258,7 +258,7 @@ style.configure(
 )
 
 # Title Label RIGHT
-ttk.Label(sidebar_canvas_right, text="Select Image", style="Dark.TLabel").pack(anchor="w", padx=10, pady=(10, 5))
+ttk.Label(sidebar_canvas_right, text="Select Image", style="Dark.TLabel").pack(anchor="w", padx=5, pady=(10, 5))
 
 image_files = [f for f in os.listdir("./mocking_examples") if f.endswith(".png")]
 
@@ -270,7 +270,7 @@ image_listing = tk.Listbox(
     fg=text_color, 
     relief="flat",
     font=("Arial", 10), 
-    bd=0
+    highlightthickness=0
 )
 image_listing.pack(padx=10, pady=(5, 10))
 
