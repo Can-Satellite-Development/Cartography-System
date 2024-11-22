@@ -9,6 +9,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import matplotlib.image as mpimg
 from tkinter import ttk
+from tkinter import colorchooser
 
 def on_hover(event):
     # Get the index of the item under the mouse cursor
@@ -25,22 +26,33 @@ def update_plot(loading=False, only_image: bool = False, image_name: str = None)
         overlay = img.copy()
         alpha: float = alpha_var.get()
 
+        global mask_colors
+
         active_masks = []
 
+        def hex_to_rgb(hex_color):
+            """
+            Converts a hex string to an RGB tuple.
+            :param hex_color: A hex color string in the format '#RRGGBB'.
+            :return: A tuple with three integers (R, G, B), each in the range 0-255.
+            """
+            hex_color = hex_color.lstrip("#")  # Remove the '#' if it exists
+            return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
         if coast_var.get():
-            active_masks.append((coast_mask, (174, 235, 52), alpha))
+            active_masks.append((coast_mask, hex_to_rgb(mask_colors["coast_color"]), alpha))
 
         if inland_var.get():
-            active_masks.append((inland_mask, (245, 130, 37), alpha))
+            active_masks.append((inland_mask, hex_to_rgb(mask_colors["inland_color"]), alpha))
 
         if forest_edge_var.get():
-            active_masks.append((forest_edge_mask, (81, 153, 14), alpha))
+            active_masks.append((forest_edge_mask, hex_to_rgb(mask_colors["forest_edge_color"]), alpha))
 
         if tree_var.get():
-            active_masks.append((tree_mask, (66, 191, 50), alpha))
+            active_masks.append((tree_mask, hex_to_rgb(mask_colors["tree_color"]), alpha))
 
         if water_var.get():
-            active_masks.append((water_mask, (58, 77, 222), alpha))
+            active_masks.append((water_mask, hex_to_rgb(mask_colors["water_color"]), alpha))
         
         overlay = hf.overlay_from_masks(overlay, *active_masks)
     else:
@@ -314,6 +326,83 @@ alpha_slider = ttk.Scale(
     style="Horizontal.TScale", command=lambda val: update_plot()
 )
 alpha_slider.pack(anchor="w", padx=10, pady=5)
+
+# Mask color customization
+ttk.Label(sidebar_left, text="Mask Colors", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
+
+def rgb_to_hex(rgb):
+    """
+    Converts an RGB tuple to a hex string.
+    :param rgb: A tuple with three integers (R, G, B), each in the range 0-255.
+    :return: A hex string in the format '#RRGGBB'.
+    """
+    return "#{:02x}{:02x}{:02x}".format(rgb[0], rgb[1], rgb[2])
+
+# Default mask colors, also global variable for mask color customization
+mask_colors = {
+    "coast_color": rgb_to_hex((174, 235, 52)),
+    "inland_color": rgb_to_hex((245, 130, 37)),
+    "forest_edge_color": rgb_to_hex((81, 153, 14)),
+    "tree_color": rgb_to_hex((66, 191, 50)),
+    "water_color": rgb_to_hex((58, 77, 222))
+}
+
+def choose_color(color_type: str):
+    if color_type not in mask_colors:
+        raise ValueError(f"Invalid color type: {color_type}")
+    color_code = colorchooser.askcolor(title="Choose a color")
+    if color_code[1]:
+        mask_colors[color_type] = color_code[1]
+        for btn in sidebar_left.winfo_children():
+            if isinstance(btn, tk.Button) and btn.winfo_name()== color_type:
+                btn["bg"] = color_code[1]
+                break
+        update_plot()
+
+tk.Button(
+    sidebar_left,
+    text="Coast Color",
+    name="coast_color",
+    bg=mask_colors["coast_color"],
+    foreground=text_color,
+    command=lambda: choose_color("coast_color")
+).pack(anchor="w", padx=10, pady=5)
+
+tk.Button(
+    sidebar_left,
+    text="Inland Color",
+    name="inland_color",
+    bg=mask_colors["inland_color"],
+    foreground=text_color,
+    command=lambda: choose_color("inland_color")
+).pack(anchor="w", padx=10, pady=5)
+
+tk.Button(
+    sidebar_left,
+    text="Forest Edge Color",
+    name="forest_edge_color",
+    bg=mask_colors["forest_edge_color"],
+    foreground=text_color,
+    command=lambda: choose_color("forest_edge_color")
+).pack(anchor="w", padx=10, pady=5)
+
+tk.Button(
+    sidebar_left,
+    text="Tree Color",
+    name="tree_color",
+    bg=mask_colors["tree_color"],
+    foreground=text_color,
+    command=lambda: choose_color("tree_color")
+).pack(anchor="w", padx=10, pady=5)
+
+tk.Button(
+    sidebar_left,
+    text="Water Color",
+    name="water_color",
+    bg=mask_colors["water_color"],
+    foreground=text_color,
+    command=lambda: choose_color("water_color")
+).pack(anchor="w", padx=10, pady=5)
 
 # Splitter
 canvas = tk.Canvas(sidebar_left, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
