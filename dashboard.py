@@ -310,7 +310,7 @@ def choose_color(color_type: str):
     color_code = colorchooser.askcolor(title="Choose a color")
     if color_code[1]:
         mask_colors[color_type] = color_code[1]
-        for btn in sidebar_left.winfo_children():
+        for btn in button_frame.winfo_children():
             if isinstance(btn, tk.Button) and btn.winfo_name()== color_type:
                 btn["bg"] = color_code[1]
                 break
