@@ -232,7 +232,7 @@ style.configure(
 )
 
 # Title Label RIGHT
-ttk.Label(sidebar_right, text="Select Image", style="Dark.TLabel").pack(anchor="w", padx=5, pady=(10, 5))
+ttk.Label(sidebar_right, text="Select Image", style="Dark.TLabel").pack(anchor="w", padx=5.5, pady=(5, 13))
 
 image_files = [f for f in os.listdir("./mocking_examples") if f.endswith(".png")]
 
@@ -277,7 +277,7 @@ canvas.pack(padx=10, pady=10)
 ttk.Label(sidebar_left, text="Adjust Alpha", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
 
 # Transparency Adjustment Slider
-alpha_var = tk.DoubleVar(value=0.35)  # Default alpha value
+alpha_var = tk.DoubleVar(value=0.75)  # Default alpha value
 alpha_slider = ttk.Scale(
     sidebar_left, from_=0.0, to=1.0, orient="horizontal", variable=alpha_var,
     style="Horizontal.TScale", command=lambda val: update_plot()
@@ -370,7 +370,7 @@ canvas.pack(padx=10, pady=10)
 # Title Label
 ttk.Label(sidebar_left, text="Building Display", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
 
-building_icons = tk.BooleanVar(value=True)
+building_icons = tk.BooleanVar(value=False)
 
 # Checkbutton for toggling building icons
 ttk.Checkbutton(sidebar_left, text="Building Icons", variable=building_icons, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
@@ -451,7 +451,7 @@ button = tk.Button(
 button.pack(anchor="w", padx=10, pady=5)
 
 # Load and display the default image
-img_path = os.path.join("./mocking_examples", image_listing.get(image_listing.curselection()[0]))  # Select first image
+img_path = "./mocking_examples/main2.png"  # Standard load image
 img = cv2.imread(img_path)
 
 # Calculate masks for the first image (predefine globals)
