@@ -165,12 +165,18 @@ text_color = "#828282"
 highlight_color = "#5a5a5a"
 
 # Create a Canvas widget to hold the sidebar and make it scrollable
-sidebar_canvas_left = tk.Canvas(root, width=200, bg=darker_bg, border=0, highlightthickness=0)
-sidebar_canvas_left.pack(side=tk.LEFT, fill=tk.Y)
+sidebar_left = tk.Canvas(root, width=200, bg=darker_bg, border=0, highlightthickness=0)
+sidebar_left.pack(side=tk.LEFT, fill=tk.Y)
 
 # Create a Canvas widget for the image selection/preview on the right
-sidebar_canvas_right = tk.Canvas(root, width=200, bg=darker_bg, border=0, highlightthickness=0)
-sidebar_canvas_right.pack(side=tk.RIGHT, fill=tk.Y)
+sidebar_right = tk.Canvas(root, width=200, bg=darker_bg, border=0, highlightthickness=0)
+sidebar_right.pack(side=tk.RIGHT, fill=tk.Y)
+
+sidebar_top = tk.Frame(root, height=80, bg=darker_bg)
+sidebar_top.pack(side=tk.TOP, fill=tk.X)
+
+button_frame = tk.Frame(sidebar_top, bg=darker_bg)
+button_frame.pack(side=tk.TOP, pady=10)
 
 # Configure the scrollbar style
 style.configure(
@@ -181,38 +187,6 @@ style.configure(
     bordercolor=dark_bg,  # Border color
     arrowcolor=dark_bg,  # Color of the arrows
 )
-
-# Add a scrollbar to the Canvas
-scrollbar_left = ttk.Scrollbar(root, orient="vertical", command=sidebar_canvas_left.yview, style="Dark.Vertical.TScrollbar")
-scrollbar_left.pack(side=tk.LEFT, fill="y")
-
-# Create a frame inside the Canvas to hold sidebar content
-sidebar_left = tk.Frame(sidebar_canvas_left, width=200, bg=darker_bg)
-sidebar_left.bind(
-    "<Configure>",
-    lambda e: sidebar_canvas_left.configure(scrollregion=sidebar_canvas_left.bbox("all"))
-)
-
-# Place the frame inside the Canvas
-sidebar_canvas_left.create_window((0, 0), window=sidebar_left, anchor="nw")
-sidebar_canvas_left.configure(yscrollcommand=scrollbar_left.set)
-
-# Function to enable scrolling with the mouse wheel
-def on_mouse_wheel(event):
-    # Adjust scroll amount for different platforms
-    if event.num == 4 or event.delta > 0:
-        sidebar_canvas_left.yview_scroll(-1, "units")
-    elif event.num == 5 or event.delta < 0:
-        sidebar_canvas_left.yview_scroll(1, "units")
-
-# Bind mouse wheel event for Windows and MacOS
-sidebar_canvas_left.bind_all("<MouseWheel>", on_mouse_wheel)
-
-sidebar_canvas_right.bind_all("<MouseWheel>", on_mouse_wheel)
-
-# Bind mouse wheel event for Linux (uses Button-4 and Button-5)
-sidebar_canvas_left.bind_all("<Button-4>", on_mouse_wheel)
-sidebar_canvas_left.bind_all("<Button-5>", on_mouse_wheel)
 
 # Variables for masks
 coast_var = tk.BooleanVar(value=True)
@@ -258,13 +232,13 @@ style.configure(
 )
 
 # Title Label RIGHT
-ttk.Label(sidebar_canvas_right, text="Select Image", style="Dark.TLabel").pack(anchor="w", padx=10, pady=(10, 5))
+ttk.Label(sidebar_right, text="Select Image", style="Dark.TLabel").pack(anchor="w", padx=10, pady=(10, 5))
 
 image_files = [f for f in os.listdir("./mocking_examples") if f.endswith(".png")]
 
 # Dropdown menu for selecting an image RIGHT
 image_listing = tk.Listbox(
-    sidebar_canvas_right, 
+    sidebar_right, 
     height=10, 
     bg=dark_bg, 
     fg=text_color, 
@@ -296,7 +270,7 @@ ttk.Checkbutton(sidebar_left, text="Buildings", variable=building_var, style="Da
 ttk.Checkbutton(sidebar_left, text="Paths", variable=path_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
 
 # Splitter
-canvas = tk.Canvas(sidebar_left, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas = tk.Canvas(sidebar_left, width=180, height=1, bg="gray", bd=0, highlightthickness=0)
 canvas.pack(padx=10, pady=10)
 
 # Title Label
@@ -343,57 +317,57 @@ def choose_color(color_type: str):
         update_plot()
 
 tk.Button(
-    sidebar_left,
+    button_frame,
     text="Coast Color",
     name="coast_color",
     bg=mask_colors["coast_color"],
     relief="flat",
     foreground=dark_bg,
     command=lambda: choose_color("coast_color")
-).pack(anchor="w", padx=10, pady=5)
+).pack(side=tk.LEFT, padx=10)
 
 tk.Button(
-    sidebar_left,
+    button_frame,
     text="Inland Color",
     name="inland_color",
     bg=mask_colors["inland_color"],
     relief="flat",
     foreground=dark_bg,
     command=lambda: choose_color("inland_color")
-).pack(anchor="w", padx=10, pady=5)
+).pack(side=tk.LEFT, padx=10)
 
 tk.Button(
-    sidebar_left,
+    button_frame,
     text="Forest Edge Color",
     name="forest_edge_color",
     bg=mask_colors["forest_edge_color"],
     relief="flat",
     foreground=dark_bg,
     command=lambda: choose_color("forest_edge_color")
-).pack(anchor="w", padx=10, pady=5)
+).pack(side=tk.LEFT, padx=10)
 
 tk.Button(
-    sidebar_left,
+    button_frame,
     text="Tree Color",
     name="tree_color",
     bg=mask_colors["tree_color"],
     relief="flat",
     foreground=dark_bg,
     command=lambda: choose_color("tree_color")
-).pack(anchor="w", padx=10, pady=5)
+).pack(side=tk.LEFT, padx=10)
 
 tk.Button(
-    sidebar_left,
+    button_frame,
     text="Water Color",
     name="water_color",
     bg=mask_colors["water_color"],
     relief="flat",
     foreground=dark_bg,
     command=lambda: choose_color("water_color")
-).pack(anchor="w", padx=10, pady=5)
+).pack(side=tk.LEFT, padx=10)
 
 # Splitter
-canvas = tk.Canvas(sidebar_left, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas = tk.Canvas(sidebar_left, width=180, height=1, bg="gray", bd=0, highlightthickness=0)
 canvas.pack(padx=10, pady=10)
 
 # Title Label
@@ -405,7 +379,7 @@ building_icons = tk.BooleanVar(value=True)
 ttk.Checkbutton(sidebar_left, text="Building Icons", variable=building_icons, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
 
 # Splitter
-canvas = tk.Canvas(sidebar_left, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas = tk.Canvas(sidebar_left, width=180, height=1, bg="gray", bd=0, highlightthickness=0)
 canvas.pack(padx=10, pady=10)
 
 # Title Label
@@ -448,7 +422,7 @@ cost_4_slider = ttk.Scale(
 cost_4_slider.pack(anchor="w", padx=10, pady=5)
 
 # Splitter
-canvas = tk.Canvas(sidebar_left, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas = tk.Canvas(sidebar_left, width=180, height=1, bg="gray", bd=0, highlightthickness=0)
 canvas.pack(padx=10, pady=10)
 
 style.configure(
