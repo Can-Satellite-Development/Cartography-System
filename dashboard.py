@@ -112,36 +112,33 @@ def update_plot(loading=False, only_image: bool = False, image_name: str = None)
     canvas.draw()
 
 # Function to load a new image based on the image listing
-def load_image(event=None, only_image=False):
-    if not only_image:
-        update_plot(loading=True)  # Show "Loading..." text before loading masks
+def load_image(event=None):
+    update_plot(loading=True)  # Show "Loading..." text before loading masks
 
+    global img, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points
+    
+    # Delay loading and calculating masks to ensure the "Loading..." text is shown
+    def update_masks():
         global img, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points
         
-        # Delay loading and calculating masks to ensure the "Loading..." text is shown
-        def update_masks():
-            global img, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points
-            
-            # Load the selected image
-            if not image_listing.get(image_listing.curselection()[0]):
-                img_path = os.path.join("./mocking_examples", image_files[0])
-                img = cv2.imread(img_path)
-            else:
-                img_path = os.path.join("./mocking_examples", image_listing.get(image_listing.curselection()[0]))
-                img = cv2.imread(img_path)
+        # Load the selected image
+        if not image_listing.get(image_listing.curselection()[0]):
+            img_path = os.path.join("./mocking_examples", image_files[0])
+            img = cv2.imread(img_path)
+        else:
+            img_path = os.path.join("./mocking_examples", image_listing.get(image_listing.curselection()[0]))
+            img = cv2.imread(img_path)
 
-            # Calculate masks for the new image
-            coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points = mask_deployment(
-                get_tree_mask(img_path), get_water_mask(img_path), (cost_1.get(), cost_2.get(), cost_3.get(), cost_4.get())
-            )
-            
-            # Update plot with new masks
-            update_plot(loading=False)  # Remove "Loading..." text and show new masks
+        # Calculate masks for the new image
+        coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points = mask_deployment(
+            get_tree_mask(img_path), get_water_mask(img_path), (cost_1.get(), cost_2.get(), cost_3.get(), cost_4.get())
+        )
+        
+        # Update plot with new masks
+        update_plot(loading=False)  # Remove "Loading..." text and show new masks
 
-        # Delay mask loading using `after` to ensure the text is shown
-        root.after(100, update_masks)
-    else:
-        update_plot(loading=False, only_image=True, image_name=image_listing.get(image_listing.curselection()[0]))
+    # Delay mask loading using `after` to ensure the text is shown
+    root.after(100, update_masks)
 
 # Create Tkinter main window
 root = tk.Tk()
