@@ -10,29 +10,43 @@ from matplotlib.figure import Figure
 import matplotlib.image as mpimg
 from tkinter import ttk
 
+def on_hover(event):
+    # Get the index of the item under the mouse cursor
+    hovered_index = image_listing.nearest(event.y)
+    
+    if 0 <= hovered_index < len(image_files):  # Ensure the index is valid
+        hovered_image = image_files[hovered_index]
+        update_plot(loading=False, only_image=True, image_name=hovered_image)
+
 # Function to update the plot based on the image
-def update_plot(loading=False):
-    overlay = img.copy()
-    alpha: float = alpha_var.get()
+def update_plot(loading=False, only_image: bool = False, image_name: str = None):
 
-    active_masks = []
+    if not only_image:
+        overlay = img.copy()
+        alpha: float = alpha_var.get()
 
-    if coast_var.get():
-        active_masks.append((coast_mask, (174, 235, 52), alpha))
+        active_masks = []
 
-    if inland_var.get():
-        active_masks.append((inland_mask, (245, 130, 37), alpha))
+        if coast_var.get():
+            active_masks.append((coast_mask, (174, 235, 52), alpha))
 
-    if forest_edge_var.get():
-        active_masks.append((forest_edge_mask, (81, 153, 14), alpha))
+        if inland_var.get():
+            active_masks.append((inland_mask, (245, 130, 37), alpha))
 
-    if tree_var.get():
-        active_masks.append((tree_mask, (66, 191, 50), alpha))
+        if forest_edge_var.get():
+            active_masks.append((forest_edge_mask, (81, 153, 14), alpha))
 
-    if water_var.get():
-        active_masks.append((water_mask, (58, 77, 222), alpha))
+        if tree_var.get():
+            active_masks.append((tree_mask, (66, 191, 50), alpha))
 
-    overlay = hf.overlay_from_masks(overlay, *active_masks)
+        if water_var.get():
+            active_masks.append((water_mask, (58, 77, 222), alpha))
+        
+        overlay = hf.overlay_from_masks(overlay, *active_masks)
+    else:
+        img_path = os.path.join("./mocking_examples", image_name)
+        preview_img = cv2.imread(img_path)
+        overlay = cv2.cvtColor(preview_img, cv2.COLOR_BGR2RGB)
 
     # Update matplotlib plot
     ax.clear()
@@ -42,60 +56,62 @@ def update_plot(loading=False):
 
     ax.imshow(overlay)
 
-    x_limits = ax.get_xlim()
-    y_limits = ax.get_ylim()
+    if not only_image:
 
-    # Display paths if path layer is enabled
-    if path_var.get():
-        for path_points in paths_points:
-            if path_points is not None:
-                for i, point in enumerate(path_points):
-                    if i > 0:
-                        x1, y1 = path_points[i - 1]
-                        x2, y2 = point
-                        line = plt.Line2D(
-                            [x1, x2], [y1, y2],
-                            linewidth=3,
-                            color=(0.7, 0.7, 0.7) if point not in bridge_points else (0.8, 0.6, 0.4), 
-                            zorder=1
-                        )
-                        ax.add_line(line)  # Add the path line
+        x_limits = ax.get_xlim()
+        y_limits = ax.get_ylim()
 
-    # Display buildings if building layer is enabled
-    if building_var.get():
-        for building in buildings:
-            x, y, w, h = building["rect"]
-            if not building_icons.get():
-                rect = plt.Rectangle(
-                    (x, y), w, h,
-                    linewidth=1, edgecolor="white", facecolor="none", 
-                    zorder=2
-                )
-                ax.add_patch(rect)  # Draw the building rectangle
-                ax.text(
-                    x + w / 2, y - 5,
-                    building["nametag"],
-                    color="white", fontsize=6, ha="center", 
-                    zorder=3
-                )
-            else:
-                try:
-                    icon = mpimg.imread(f"./icons/{'_'.join(building['nametag'].lower().split())}.png")[::-1]
-                except FileNotFoundError:
-                    icon = mpimg.imread(f"./icons/wip.png")[::-1]
-                ax.imshow(
-                    icon,
-                    extent=[x + w / 2 - 15, x + w / 2 + 15, y + h / 2 - 15, y + h / 2 + 15],  # Position and size of the icon
-                    aspect='equal',  # Scale image to fit the extent
-                    zorder=2
-                )
-    
-    ax.set_xlim(x_limits)
-    ax.set_ylim(y_limits)
+        # Display paths if path layer is enabled
+        if path_var.get():
+            for path_points in paths_points:
+                if path_points is not None:
+                    for i, point in enumerate(path_points):
+                        if i > 0:
+                            x1, y1 = path_points[i - 1]
+                            x2, y2 = point
+                            line = plt.Line2D(
+                                [x1, x2], [y1, y2],
+                                linewidth=3,
+                                color=(0.7, 0.7, 0.7) if point not in bridge_points else (0.8, 0.6, 0.4), 
+                                zorder=1
+                            )
+                            ax.add_line(line)  # Add the path line
+
+        # Display buildings if building layer is enabled
+        if building_var.get():
+            for building in buildings:
+                x, y, w, h = building["rect"]
+                if not building_icons.get():
+                    rect = plt.Rectangle(
+                        (x, y), w, h,
+                        linewidth=1, edgecolor="white", facecolor="none", 
+                        zorder=2
+                    )
+                    ax.add_patch(rect)  # Draw the building rectangle
+                    ax.text(
+                        x + w / 2, y - 5,
+                        building["nametag"],
+                        color="white", fontsize=6, ha="center", 
+                        zorder=3
+                    )
+                else:
+                    try:
+                        icon = mpimg.imread(f"./icons/{'_'.join(building['nametag'].lower().split())}.png")[::-1]
+                    except FileNotFoundError:
+                        icon = mpimg.imread(f"./icons/wip.png")[::-1]
+                    ax.imshow(
+                        icon,
+                        extent=[x + w / 2 - 15, x + w / 2 + 15, y + h / 2 - 15, y + h / 2 + 15],  # Position and size of the icon
+                        aspect='equal',  # Scale image to fit the extent
+                        zorder=2
+                    )
+        
+        ax.set_xlim(x_limits)
+        ax.set_ylim(y_limits)
 
     canvas.draw()
 
-# Function to load a new image based on the selection in the dropdown
+# Function to load a new image based on the image listing
 def load_image(event=None):
     update_plot(loading=True)  # Show "Loading..." text before loading masks
 
@@ -106,11 +122,11 @@ def load_image(event=None):
         global img, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points
         
         # Load the selected image
-        if not image_selection.get():
+        if not image_listing.get(image_listing.curselection()[0]):
             img_path = os.path.join("./mocking_examples", image_files[0])
             img = cv2.imread(img_path)
         else:
-            img_path = os.path.join("./mocking_examples", image_selection.get())
+            img_path = os.path.join("./mocking_examples", image_listing.get(image_listing.curselection()[0]))
             img = cv2.imread(img_path)
 
         # Calculate masks for the new image
@@ -138,8 +154,12 @@ text_color = "#828282"
 highlight_color = "#5a5a5a"
 
 # Create a Canvas widget to hold the sidebar and make it scrollable
-sidebar_canvas = tk.Canvas(root, width=250, bg=darker_bg, border=0, highlightthickness=0)
-sidebar_canvas.pack(side=tk.LEFT, fill=tk.Y)
+sidebar_canvas_left = tk.Canvas(root, width=200, bg=darker_bg, border=0, highlightthickness=0)
+sidebar_canvas_left.pack(side=tk.LEFT, fill=tk.Y)
+
+# Create a Canvas widget for the image selection/preview on the right
+sidebar_canvas_right = tk.Canvas(root, width=200, bg=darker_bg, border=0, highlightthickness=0)
+sidebar_canvas_right.pack(side=tk.RIGHT, fill=tk.Y)
 
 # Configure the scrollbar style
 style.configure(
@@ -152,34 +172,52 @@ style.configure(
 )
 
 # Add a scrollbar to the Canvas
-scrollbar = ttk.Scrollbar(root, orient="vertical", command=sidebar_canvas.yview, style="Dark.Vertical.TScrollbar")
-scrollbar.pack(side=tk.LEFT, fill="y")
+scrollbar_left = ttk.Scrollbar(root, orient="vertical", command=sidebar_canvas_left.yview, style="Dark.Vertical.TScrollbar")
+scrollbar_left.pack(side=tk.LEFT, fill="y")
+
+scrollbar_right = ttk.Scrollbar(root, orient="vertical", command=sidebar_canvas_right.yview, style="Dark.Vertical.TScrollbar")
+scrollbar_right.pack(side=tk.RIGHT, fill="y")
 
 # Create a frame inside the Canvas to hold sidebar content
-sidebar = tk.Frame(sidebar_canvas, width=250, bg=darker_bg)
-sidebar.bind(
+sidebar_left = tk.Frame(sidebar_canvas_left, width=200, bg=darker_bg)
+sidebar_left.bind(
     "<Configure>",
-    lambda e: sidebar_canvas.configure(scrollregion=sidebar_canvas.bbox("all"))
+    lambda e: sidebar_canvas_left.configure(scrollregion=sidebar_canvas_left.bbox("all"))
+)
+
+# Create a frame inside the right Canvas to hold images
+sidebar_right = tk.Frame(sidebar_canvas_right, width=200, bg=darker_bg)
+sidebar_right.bind(
+    "<Configure>",
+    lambda e: sidebar_canvas_right.configure(scrollregion=sidebar_canvas_right.bbox("all"))
 )
 
 # Place the frame inside the Canvas
-sidebar_canvas.create_window((0, 0), window=sidebar, anchor="nw")
-sidebar_canvas.configure(yscrollcommand=scrollbar.set)
+sidebar_canvas_left.create_window((0, 0), window=sidebar_left, anchor="nw")
+sidebar_canvas_left.configure(yscrollcommand=scrollbar_left.set)
+
+sidebar_canvas_right.create_window((0, 0), window=sidebar_right, anchor="nw")
+sidebar_canvas_right.configure(yscrollcommand=scrollbar_right.set)
 
 # Function to enable scrolling with the mouse wheel
 def on_mouse_wheel(event):
     # Adjust scroll amount for different platforms
     if event.num == 4 or event.delta > 0:
-        sidebar_canvas.yview_scroll(-1, "units")
+        sidebar_canvas_left.yview_scroll(-1, "units")
     elif event.num == 5 or event.delta < 0:
-        sidebar_canvas.yview_scroll(1, "units")
+        sidebar_canvas_left.yview_scroll(1, "units")
 
 # Bind mouse wheel event for Windows and MacOS
-sidebar_canvas.bind_all("<MouseWheel>", on_mouse_wheel)
+sidebar_canvas_left.bind_all("<MouseWheel>", on_mouse_wheel)
+
+sidebar_canvas_right.bind_all("<MouseWheel>", on_mouse_wheel)
 
 # Bind mouse wheel event for Linux (uses Button-4 and Button-5)
-sidebar_canvas.bind_all("<Button-4>", on_mouse_wheel)
-sidebar_canvas.bind_all("<Button-5>", on_mouse_wheel)
+sidebar_canvas_left.bind_all("<Button-4>", on_mouse_wheel)
+sidebar_canvas_left.bind_all("<Button-5>", on_mouse_wheel)
+
+sidebar_canvas_right.bind_all("<Button-4>", on_mouse_wheel)
+sidebar_canvas_right.bind_all("<Button-5>", on_mouse_wheel)
 
 # Variables for masks
 coast_var = tk.BooleanVar(value=True)
@@ -224,99 +262,116 @@ style.configure(
     font=("Arial", 10)
 )
 
-# Dropdown menu for selecting an image
-image_files = [f for f in os.listdir("./mocking_examples") if f.endswith(".png")]
-image_selection = ttk.Combobox(sidebar, values=image_files, style="TCombobox")
-image_selection.pack(padx=10, pady=(10, 5), anchor="w")
-image_selection.bind("<<ComboboxSelected>>", load_image)
-image_selection.current(0)
+# Title Label RIGHT
+ttk.Label(sidebar_right, text="Select Image", style="Dark.TLabel").pack(anchor="w", padx=10, pady=(10, 5))
 
-# Splitter
-canvas = tk.Canvas(sidebar, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
-canvas.pack(padx=10, pady=10)
+image_files = [f for f in os.listdir("./mocking_examples") if f.endswith(".png")]
+
+# Dropdown menu for selecting an image RIGHT
+image_listing = tk.Listbox(
+    sidebar_right, 
+    height=10, 
+    bg=dark_bg, 
+    fg=text_color, 
+    relief="flat",
+    font=("Arial", 10), 
+    bd=0
+)
+image_listing.pack(padx=10, pady=(5, 10))
+
+# Items in die Listbox einfügen
+for image_file in image_files:
+    image_listing.insert(tk.END, image_file)
+
+# Bind für Mouseover und Leave-Events
+image_listing.bind("<Motion>", lambda event: on_hover(event))
+image_listing.bind("<Leave>", lambda event: update_plot(loading=False))
+image_listing.bind("<<ListboxSelect>>", load_image)
+image_listing.selection_set(0)
 
 # Labels and checkbuttons for masks
-ttk.Label(sidebar, text="Toggle Layers", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
-ttk.Checkbutton(sidebar, text="Coast Mask", variable=coast_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
-ttk.Checkbutton(sidebar, text="Inland Mask", variable=inland_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
-ttk.Checkbutton(sidebar, text="Forest Edge Mask", variable=forest_edge_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
-ttk.Checkbutton(sidebar, text="Tree Mask", variable=tree_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
-ttk.Checkbutton(sidebar, text="Water Mask", variable=water_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
-ttk.Checkbutton(sidebar, text="Buildings", variable=building_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
-ttk.Checkbutton(sidebar, text="Paths", variable=path_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
+ttk.Label(sidebar_left, text="Toggle Layers", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
+
+ttk.Checkbutton(sidebar_left, text="Coast Mask", variable=coast_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
+ttk.Checkbutton(sidebar_left, text="Inland Mask", variable=inland_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
+ttk.Checkbutton(sidebar_left, text="Forest Edge Mask", variable=forest_edge_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
+ttk.Checkbutton(sidebar_left, text="Tree Mask", variable=tree_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
+ttk.Checkbutton(sidebar_left, text="Water Mask", variable=water_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
+ttk.Checkbutton(sidebar_left, text="Buildings", variable=building_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
+ttk.Checkbutton(sidebar_left, text="Paths", variable=path_var, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
 
 # Splitter
-canvas = tk.Canvas(sidebar, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas = tk.Canvas(sidebar_left, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
 canvas.pack(padx=10, pady=10)
 
 # Title Label
-ttk.Label(sidebar, text="Adjust Alpha", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
+ttk.Label(sidebar_left, text="Adjust Alpha", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
 
 # Transparency Adjustment Slider
 alpha_var = tk.DoubleVar(value=0.35)  # Default alpha value
 alpha_slider = ttk.Scale(
-    sidebar, from_=0.0, to=1.0, orient="horizontal", variable=alpha_var,
+    sidebar_left, from_=0.0, to=1.0, orient="horizontal", variable=alpha_var,
     style="Horizontal.TScale", command=lambda val: update_plot()
 )
 alpha_slider.pack(anchor="w", padx=10, pady=5)
 
 # Splitter
-canvas = tk.Canvas(sidebar, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas = tk.Canvas(sidebar_left, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
 canvas.pack(padx=10, pady=10)
 
 # Title Label
-ttk.Label(sidebar, text="Building Display", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
+ttk.Label(sidebar_left, text="Building Display", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
 
 building_icons = tk.BooleanVar(value=True)
 
 # Checkbutton for toggling building icons
-ttk.Checkbutton(sidebar, text="Building Icons", variable=building_icons, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
+ttk.Checkbutton(sidebar_left, text="Building Icons", variable=building_icons, style="Dark.TCheckbutton", command=update_plot).pack(anchor="w", padx=10, pady=5)
 
 # Splitter
-canvas = tk.Canvas(sidebar, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas = tk.Canvas(sidebar_left, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
 canvas.pack(padx=10, pady=10)
 
 # Title Label
-ttk.Label(sidebar, text="Path Mask Priority", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
+ttk.Label(sidebar_left, text="Path Mask Priority", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
 
 # Cost Slider
-ttk.Label(sidebar, text="Zero Mask:", style="Dark_.TLabel").pack(anchor="w", padx=10, pady=2.5)
+ttk.Label(sidebar_left, text="Zero Mask:", style="Dark_.TLabel").pack(anchor="w", padx=10, pady=2.5)
 cost_1 = tk.DoubleVar(value=1)
 cost_1_slider = ttk.Scale(
-    sidebar, from_=1.0, to=10000.0, orient="horizontal", variable=cost_1,
+    sidebar_left, from_=1.0, to=10000.0, orient="horizontal", variable=cost_1,
     style="Horizontal.TScale"
 )
 cost_1_slider.pack(anchor="w", padx=10, pady=5)
 
 # Cost Slider
-ttk.Label(sidebar, text="Tree Mask:", style="Dark_.TLabel").pack(anchor="w", padx=10, pady=2.5)
+ttk.Label(sidebar_left, text="Tree Mask:", style="Dark_.TLabel").pack(anchor="w", padx=10, pady=2.5)
 cost_2 = tk.DoubleVar(value=100)
 cost_2_slider = ttk.Scale(
-    sidebar, from_=1.0, to=10000.0, orient="horizontal", variable=cost_2,
+    sidebar_left, from_=1.0, to=10000.0, orient="horizontal", variable=cost_2,
     style="Horizontal.TScale"
 )
 cost_2_slider.pack(anchor="w", padx=10, pady=5)
 
 # Cost Slider
-ttk.Label(sidebar, text="Water Mask:", style="Dark_.TLabel").pack(anchor="w", padx=10, pady=2.5)
+ttk.Label(sidebar_left, text="Water Mask:", style="Dark_.TLabel").pack(anchor="w", padx=10, pady=2.5)
 cost_3 = tk.DoubleVar(value=1000)
 cost_3_slider = ttk.Scale(
-    sidebar, from_=1.0, to=10000.0, orient="horizontal", variable=cost_3,
+    sidebar_left, from_=1.0, to=10000.0, orient="horizontal", variable=cost_3,
     style="Horizontal.TScale"
 )
 cost_3_slider.pack(anchor="w", padx=10, pady=5)
 
 # Cost Slider
-ttk.Label(sidebar, text="Buildings Mask:", style="Dark_.TLabel").pack(anchor="w", padx=10, pady=2.5)
+ttk.Label(sidebar_left, text="Buildings Mask:", style="Dark_.TLabel").pack(anchor="w", padx=10, pady=2.5)
 cost_4 = tk.DoubleVar(value=10000)
 cost_4_slider = ttk.Scale(
-    sidebar, from_=1.0, to=10000.0, orient="horizontal", variable=cost_4,
+    sidebar_left, from_=1.0, to=10000.0, orient="horizontal", variable=cost_4,
     style="Horizontal.TScale"
 )
 cost_4_slider.pack(anchor="w", padx=10, pady=5)
 
 # Splitter
-canvas = tk.Canvas(sidebar, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas = tk.Canvas(sidebar_left, width=230, height=1, bg="gray", bd=0, highlightthickness=0)
 canvas.pack(padx=10, pady=10)
 
 style.configure(
@@ -336,7 +391,7 @@ style.map(
 
 # Update Button
 button = tk.Button(
-    sidebar, text="Update", 
+    sidebar_left, text="Update", 
     background=dark_bg, foreground=text_color,
     font=("Arial", 12, "bold"),
     relief="flat",
@@ -348,7 +403,7 @@ button = tk.Button(
 button.pack(anchor="w", padx=10, pady=5)
 
 # Load and display the default image
-img_path = os.path.join("./mocking_examples", image_selection.get())  # Select first image
+img_path = os.path.join("./mocking_examples", image_listing.get(image_listing.curselection()[0]))  # Select first image
 img = cv2.imread(img_path)
 
 # Calculate masks for the first image (predefine globals)
