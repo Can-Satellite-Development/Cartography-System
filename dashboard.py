@@ -80,7 +80,7 @@ def update_plot(loading=False):
                 )
             else:
                 try:
-                    icon = mpimg.imread(f"./icons/{"_".join(building['nametag'].lower().split())}.png")[::-1]
+                    icon = mpimg.imread(f"./icons/{'_'.join(building['nametag'].lower().split())}.png")[::-1]
                 except FileNotFoundError:
                     icon = mpimg.imread(f"./icons/wip.png")[::-1]
                 ax.imshow(
