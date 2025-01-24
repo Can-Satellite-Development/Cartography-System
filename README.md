@@ -4,8 +4,7 @@ This project provides a framework for analyzing terrain images and generating ac
 
 ---
 
-![image](https://github.com/user-attachments/assets/975411f0-47fc-49f1-9997-06b53ff53df1)
-
+![image](https://github.com/user-attachments/assets/46161fff-db27-4c97-bd67-4901f1d7d881)
 
 ## Features
 
