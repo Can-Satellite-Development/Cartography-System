@@ -3,7 +3,7 @@ import os
 import numpy as np
 import tkinter as tk
 import matplotlib.pyplot as plt
-import helper_functions as hf
+import utilities as utils
 from area_mapping import mask_deployment, get_tree_mask, get_water_mask
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
@@ -53,7 +53,7 @@ def update_plot(loading=False, only_image: bool = False, image_name: str = None)
         if water_var.get():
             active_masks.append((water_mask, hex_to_rgb(mask_colors["water_color"]), alpha))
         
-        overlay = hf.overlay_from_masks(overlay, *active_masks)
+        overlay = utils.overlay_from_masks(overlay, *active_masks)
     else:
         img_path = os.path.join("./mocking_examples", image_name)
         preview_img = cv2.imread(img_path)
@@ -120,17 +120,28 @@ def update_plot(loading=False, only_image: bool = False, image_name: str = None)
         ax.set_xlim(x_limits)
         ax.set_ylim(y_limits)
 
+        # Unpack percentages tuple
+        water_percentage, zero_percentage, tree_percentage, score = percentages
+
+        # Habitability percentage display
+        ax.text(
+            0.99, 0.02,  # Position (bottom right corner)
+            f"Water: {water_percentage:.2f}%\nInland: {zero_percentage:.2f}%\nVegetation: {tree_percentage:.2f}%\nHabitability-Score: {score:.2f}%",
+            color="white", fontsize=10, ha="right", va="bottom", transform=ax.transAxes,
+            bbox=dict(facecolor='black', alpha=0.5, edgecolor='none')  # Hintergrundbox für bessere Lesbarkeit
+        )
+
     canvas.draw()
 
 # Function to load a new image based on the image listing
 def load_image(event=None):
     update_plot(loading=True)  # Show "Loading..." text before loading masks
 
-    global img, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points
+    global img, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points, percentages
     
     # Delay loading and calculating masks to ensure the "Loading..." text is shown
     def update_masks():
-        global img, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points
+        global img, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points, percentages
         
         # Load the selected image
         if not image_listing.get(image_listing.curselection()[0]):
@@ -141,7 +152,7 @@ def load_image(event=None):
             img = cv2.imread(img_path)
 
         # Calculate masks for the new image
-        coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points = mask_deployment(
+        coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points, percentages = mask_deployment(
             get_tree_mask(img_path), get_water_mask(img_path), (cost_1.get(), cost_2.get(), cost_3.get(), cost_4.get())
         )
         
@@ -455,7 +466,7 @@ img_path = "./mocking_examples/main2.png"  # Standard load image
 img = cv2.imread(img_path)
 
 # Calculate masks for the first image (predefine globals)
-coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points = mask_deployment(
+coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points, percentages = mask_deployment(
     get_tree_mask(img_path), get_water_mask(img_path)
 )
 
