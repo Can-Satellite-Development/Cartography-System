@@ -121,10 +121,11 @@ def mask_percentages(water_mask: np.ndarray, zero_mask: np.ndarray, tree_mask: n
     if zero_percentage < 10:
         tolerance_bonus -= 10
         
-    if water_percentage < 2:
-        tolerance_bonus -= 10
+    if water_percentage < 5:
+        tolerance_bonus -= 20
 
-    score = round((water_percentage * water_weight + zero_percentage * building_weight + tree_percentage * tree_weight + tolerance_bonus) / 100, 2) + tolerance_bonus
+    score = (water_percentage * water_weight + zero_percentage * building_weight + tree_percentage * tree_weight + tolerance_bonus) / 100
+    score = min(100, round(score * 1.75 + tolerance_bonus, 2))
 
     return (water_percentage, zero_percentage, tree_percentage, score)
 
