@@ -79,7 +79,7 @@ def get_buildings(sort_priority: bool = True) -> list:
     else:
         return buildings
 
-def place_buildings(blueprints: list, masks: dict[str, np.ndarray]) -> tuple[list, np.ndarray]:
+def place_buildings(blueprints: list, masks: dict[str, np.ndarray], scaling_factor: float = 1) -> tuple[list, np.ndarray]:
     # Place buildings
     placed_buildings = []
     building_mask = np.zeros_like(masks["zero"])
@@ -95,7 +95,7 @@ def place_buildings(blueprints: list, masks: dict[str, np.ndarray]) -> tuple[lis
 
             # Iterate over the mask
             for y, x in sorted(np.argwhere(mask > 0), key=lambda x: ((x[0] - centroid[0]) ** 2 + (x[1] - centroid[1]) ** 2) ** 0.5):  # Sort by distance to centroid
-                rect_width, rect_height = dimensions[0], dimensions[1]
+                rect_width, rect_height = int(dimensions[0] * scaling_factor), int(dimensions[1] * scaling_factor)
 
                 #Check if rectangles fit within the mask-area
                 if (x + rect_width <= mask.shape[1]) and (y + rect_height <= mask.shape[0]):

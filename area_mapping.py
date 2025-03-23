@@ -128,7 +128,7 @@ def mask_percentages(water_mask: np.ndarray, zero_mask: np.ndarray, tree_mask: n
 
     return (water_percentage, zero_percentage, tree_percentage, score)
 
-def mask_deployment(tree_mask: np.ndarray, water_mask: np.ndarray, costs: tuple[int] = (1, 100, 1000, 100000)) -> tuple[np.ndarray]:
+def mask_deployment(tree_mask: np.ndarray, water_mask: np.ndarray, costs: tuple[int] = (1000, 3500, 5000, 10000), image_height: float = 250) -> tuple[np.ndarray]:
     zero_mask = get_zero_mask(tree_mask, water_mask)
     utils.paste_debugging("zero mask generated")  #* Debugging (Time Paste)
 
@@ -151,14 +151,18 @@ def mask_deployment(tree_mask: np.ndarray, water_mask: np.ndarray, costs: tuple[
 
     blueprints = utils.get_buildings()
     utils.paste_debugging("blueprint received")  #* Debugging (Time Paste)
+
+    scaling_factor = 250 / image_height    
+
     buildings, building_mask = utils.place_buildings(blueprints, 
                                     masks={
                                         "zero": zero_mask,
                                         "coast": coast_mask, 
                                         "inland": inland_mask, 
                                         "forest_edge": forest_edge_mask, 
-                                        "water_and_coast": water_and_coast_mask}
-                                   )
+                                        "water_and_coast": water_and_coast_mask},
+                                    scaling_factor = scaling_factor
+                                    )
     utils.paste_debugging("buildings placed")  #* Debugging (Time Paste)
     
     # Generate List of paths

@@ -141,19 +141,22 @@ def load_image(event=None):
     
     # Delay loading and calculating masks to ensure the "Loading..." text is shown
     def update_masks():
-        global img, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points, percentages
+        global img, img_path, coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points, percentages
         
         # Load the selected image
-        if not image_listing.get(image_listing.curselection()[0]):
-            img_path = os.path.join("./mocking_examples", image_files[0])
-            img = cv2.imread(img_path)
-        else:
-            img_path = os.path.join("./mocking_examples", image_listing.get(image_listing.curselection()[0]))
-            img = cv2.imread(img_path)
+        try:
+            if not image_listing.get(image_listing.curselection()[0]):
+                img_path = os.path.join("./mocking_examples", image_files[0])
+                img = cv2.imread(img_path)
+            else:
+                img_path = os.path.join("./mocking_examples", image_listing.get(image_listing.curselection()[0]))
+                img = cv2.imread(img_path)
+        except IndexError:
+            pass
 
         # Calculate masks for the new image
         coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points, percentages = mask_deployment(
-            get_tree_mask(img_path), get_water_mask(img_path), (cost_1.get(), cost_2.get(), cost_3.get(), cost_4.get())
+            get_tree_mask(img_path), get_water_mask(img_path), (cost_1.get(), cost_2.get(), cost_3.get(), cost_4.get()), float(image_height_var.get())
         )
         
         # Update plot with new masks
@@ -266,8 +269,19 @@ for image_file in image_files:
 # Bind für Mouseover und Leave-Events
 image_listing.bind("<Motion>", lambda event: on_hover(event))
 image_listing.bind("<Leave>", lambda event: update_plot(loading=False))
-image_listing.bind("<<ListboxSelect>>", load_image)
-image_listing.selection_set(0)
+image_listing.bind("<<ListboxSelect>>", lambda event: load_image() if image_listing.curselection() else None)
+image_listing.selection_set(3)
+
+# Splitter right sidebar
+canvas = tk.Canvas(sidebar_right, width=140, height=1, bg="gray", bd=0, highlightthickness=0)
+canvas.pack(padx=10, pady=10)
+
+# Eingabefeld für Skalierungsfaktor
+ttk.Label(sidebar_right, text="Image Height", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
+
+image_height_var = tk.DoubleVar(value=250.0)  # Default height (scaling factor)
+image_height_entry = ttk.Entry(sidebar_right, textvariable=image_height_var, style="Dark.TEntry")
+image_height_entry.pack(anchor="w", padx=10, pady=5)
 
 # Labels and checkbuttons for masks
 ttk.Label(sidebar_left, text="Toggle Layers", style="Dark.TLabel").pack(anchor="w", padx=10, pady=5)
@@ -395,7 +409,7 @@ ttk.Label(sidebar_left, text="Path Mask Priority", style="Dark.TLabel").pack(anc
 
 # Cost Slider
 ttk.Label(sidebar_left, text="Zero Mask:", style="Dark_.TLabel").pack(anchor="w", padx=10, pady=2.5)
-cost_1 = tk.DoubleVar(value=1)
+cost_1 = tk.DoubleVar(value=500)
 cost_1_slider = ttk.Scale(
     sidebar_left, from_=1.0, to=10000.0, orient="horizontal", variable=cost_1,
     style="Horizontal.TScale"
@@ -404,7 +418,7 @@ cost_1_slider.pack(anchor="w", padx=10, pady=5)
 
 # Cost Slider
 ttk.Label(sidebar_left, text="Tree Mask:", style="Dark_.TLabel").pack(anchor="w", padx=10, pady=2.5)
-cost_2 = tk.DoubleVar(value=100)
+cost_2 = tk.DoubleVar(value=2500)
 cost_2_slider = ttk.Scale(
     sidebar_left, from_=1.0, to=10000.0, orient="horizontal", variable=cost_2,
     style="Horizontal.TScale"
@@ -413,7 +427,7 @@ cost_2_slider.pack(anchor="w", padx=10, pady=5)
 
 # Cost Slider
 ttk.Label(sidebar_left, text="Water Mask:", style="Dark_.TLabel").pack(anchor="w", padx=10, pady=2.5)
-cost_3 = tk.DoubleVar(value=1000)
+cost_3 = tk.DoubleVar(value=5000)
 cost_3_slider = ttk.Scale(
     sidebar_left, from_=1.0, to=10000.0, orient="horizontal", variable=cost_3,
     style="Horizontal.TScale"
@@ -462,12 +476,13 @@ button = tk.Button(
 button.pack(anchor="w", padx=10, pady=5)
 
 # Load and display the default image
+global img, img_path
 img_path = "./mocking_examples/main2.png"  # Standard load image
 img = cv2.imread(img_path)
 
 # Calculate masks for the first image (predefine globals)
 coast_mask, inland_mask, forest_edge_mask, tree_mask, water_mask, buildings, paths_points, bridge_points, percentages = mask_deployment(
-    get_tree_mask(img_path), get_water_mask(img_path)
+    get_tree_mask(img_path), get_water_mask(img_path), image_height=image_height_var.get()
 )
 
 # Create matplotlib plot
