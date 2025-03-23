@@ -1,51 +1,65 @@
 [
     {
+        "name": "Town Hall", 
+        "size": [30, 30], 
+        "priority": 5, 
+        "location": "zero", 
+        "amount": 1
+    }, 
+    {
         "name": "HEP-Plant", 
-        "size": [30, 35], 
+        "size": [20, 25], 
         "priority": 2, 
         "location": "water_and_coast", 
         "amount": 2
     }, 
     {
-        "name": "res-building 1", 
-        "size": [25, 45], 
+        "name": "Residential Building", 
+        "size": [15, 20], 
         "priority": 2, 
         "location": "zero", 
         "amount": 2
     }, 
     {
-        "name": "res-building 2", 
-        "size": [25, 45], 
+        "name": "Residential Building", 
+        "size": [30, 30], 
+        "priority": 3, 
+        "location": "zero", 
+        "amount": 1
+    }, 
+    {
+        "name": "Workshop", 
+        "size": [5, 10], 
         "priority": 1, 
         "location": "zero", 
-        "amount": 1
+        "amount": 2
     }, 
     {
-        "name": "workshop", 
-        "size": [25, 10], 
-        "priority": 2, 
-        "location": "zero", 
-        "amount": 1
-    }, 
-    {
-        "name": "lumberjack", 
-        "size": [30, 30], 
+        "name": "Lumberjack", 
+        "size": [15, 15], 
         "priority": 3, 
         "location": "forest_edge", 
         "amount": 1
     }, 
     {
-        "name": "port", 
+        "name": "Port", 
         "size": [20, 20], 
         "priority": 3, 
         "location": "coast", 
         "amount": 1
     }, 
     {
-        "name": "mine", 
-        "size": [30, 30], 
+        "name": "Mine", 
+        "size": [25, 25], 
         "priority": 3, 
         "location": "inland", 
+        "amount": 1
+    }, 
+    {
+        "name": "Factory", 
+        "size": [30, 40], 
+        "priority": 2, 
+        "location": "zero", 
         "amount": 1
     }
 ]
