@@ -117,7 +117,10 @@ def mask_percentages(water_mask: np.ndarray, zero_mask: np.ndarray, tree_mask: n
         else:
             if percentage != (water_percentage, water_weight):
                 tolerance_bonus -= 5
-    
+
+    if zero_percentage < 10:
+        tolerance_bonus -= 10
+        
     if water_percentage < 2:
         tolerance_bonus -= 10
 
